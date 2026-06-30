@@ -11,3 +11,11 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Modelo de prueba (temporal) para confirmar que Prisma y Neon
+// se conectan bien. Lo borraremos en la FASE 3.
+model HealthCheck {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now())
+}
