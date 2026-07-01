@@ -12,16 +12,26 @@ datasource db {
   provider = "postgresql"
 }
 
-// Una categoría solo puede ser uno de estos dos valores fijos
 enum Category {
   MASCULINO
   FEMENINO
 }
 
-// Tabla de Equipos
 model Team {
   id        Int      @id @default(autoincrement())
   name      String
   category  Category
   createdAt DateTime @default(now())
+
+  players   Player[]  // 👈 un equipo TIENE MUCHOS jugadores
+}
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  name      String
+  number    Int?     // dorsal (opcional)
+  createdAt DateTime @default(now())
+
+  team      Team     @relation(fields: [teamId], references: [id]) // 👈 pertenece a UN equipo
+  teamId    Int      // 👈 el "hilo": guarda el id del equipo
 }
