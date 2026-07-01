@@ -30,6 +30,12 @@ enum MatchStatus {
   FINALIZADO
 }
 
+enum EventType {
+  GOL
+  AMARILLA
+  ROJA
+}
+
 model Team {
   id        Int      @id @default(autoincrement())
   name      String
@@ -41,8 +47,10 @@ model Team {
 
   players   Player[]
 
-  matchesAsTeamA Match[] @relation("MatchesAsTeamA") // 👈 partidos donde este equipo es el A
-  matchesAsTeamB Match[] @relation("MatchesAsTeamB") // 👈 partidos donde es el B
+  matchesAsTeamA Match[] @relation("MatchesAsTeamA")
+  matchesAsTeamB Match[] @relation("MatchesAsTeamB")
+
+  events    MatchEvent[] // eventos de este equipo (goles, tarjetas)
 }
 
 model Player {
@@ -53,6 +61,8 @@ model Player {
 
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    Int
+
+  events    MatchEvent[] // eventos de este jugador
 }
 
 model Group {
@@ -65,17 +75,33 @@ model Group {
 
 model Match {
   id          Int         @id @default(autoincrement())
-  phase       Phase       // GRUPOS, CUARTOS, SEMIFINAL o FINAL
-  status      MatchStatus @default(PROGRAMADO) // nace "programado" automáticamente
-  fieldNumber Int         // cancha 1-4
-  scheduledAt DateTime    // fecha y hora del partido
+  phase       Phase
+  status      MatchStatus @default(PROGRAMADO)
+  fieldNumber Int
+  scheduledAt DateTime
   createdAt   DateTime    @default(now())
 
-  teamA   Team @relation("MatchesAsTeamA", fields: [teamAId], references: [id]) // 👈 hilo con nombre
+  teamA   Team @relation("MatchesAsTeamA", fields: [teamAId], references: [id])
   teamAId Int
-  teamB   Team @relation("MatchesAsTeamB", fields: [teamBId], references: [id]) // 👈 el otro hilo
+  teamB   Team @relation("MatchesAsTeamB", fields: [teamBId], references: [id])
   teamBId Int
 
-  scoreA Int? // vacío = no se ha jugado (≠ 0)
+  scoreA Int?
   scoreB Int?
+
+  events MatchEvent[] // el "acta": todo lo que pasó en este partido
+}
+
+model MatchEvent {
+  id        Int       @id @default(autoincrement())
+  type      EventType // GOL, AMARILLA o ROJA
+  minute    Int?      // minuto del partido (opcional)
+  createdAt DateTime  @default(now())
+
+  match    Match   @relation(fields: [matchId], references: [id]) // 👈 hilo 1: el partido
+  matchId  Int
+  team     Team    @relation(fields: [teamId], references: [id])  // 👈 hilo 2: el equipo
+  teamId   Int
+  player   Player? @relation(fields: [playerId], references: [id]) // 👈 hilo 3: el jugador (opcional)
+  playerId Int?
 }
