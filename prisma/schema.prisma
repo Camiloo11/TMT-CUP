@@ -17,16 +17,32 @@ enum Category {
   FEMENINO
 }
 
+enum Phase {
+  GRUPOS
+  CUARTOS
+  SEMIFINAL
+  FINAL
+}
+
+enum MatchStatus {
+  PROGRAMADO
+  EN_JUEGO
+  FINALIZADO
+}
+
 model Team {
   id        Int      @id @default(autoincrement())
   name      String
   category  Category
   createdAt DateTime @default(now())
 
-  group     Group?   @relation(fields: [groupId], references: [id]) // 👈 opcional: femenino no tiene grupo
-  groupId   Int?     // 👈 el "?" = puede quedar vacío
+  group     Group?   @relation(fields: [groupId], references: [id])
+  groupId   Int?
 
   players   Player[]
+
+  matchesAsTeamA Match[] @relation("MatchesAsTeamA") // 👈 partidos donde este equipo es el A
+  matchesAsTeamB Match[] @relation("MatchesAsTeamB") // 👈 partidos donde es el B
 }
 
 model Player {
@@ -41,8 +57,25 @@ model Player {
 
 model Group {
   id          Int    @id @default(autoincrement())
-  name        String // "A", "B", "C", "D"
-  fieldNumber Int    // cancha fija del grupo (1-4) → tu regla "Cancha 1 = Grupo A"
+  name        String
+  fieldNumber Int
 
-  teams       Team[] // un grupo tiene muchos equipos
+  teams       Team[]
+}
+
+model Match {
+  id          Int         @id @default(autoincrement())
+  phase       Phase       // GRUPOS, CUARTOS, SEMIFINAL o FINAL
+  status      MatchStatus @default(PROGRAMADO) // nace "programado" automáticamente
+  fieldNumber Int         // cancha 1-4
+  scheduledAt DateTime    // fecha y hora del partido
+  createdAt   DateTime    @default(now())
+
+  teamA   Team @relation("MatchesAsTeamA", fields: [teamAId], references: [id]) // 👈 hilo con nombre
+  teamAId Int
+  teamB   Team @relation("MatchesAsTeamB", fields: [teamBId], references: [id]) // 👈 el otro hilo
+  teamBId Int
+
+  scoreA Int? // vacío = no se ha jugado (≠ 0)
+  scoreB Int?
 }
