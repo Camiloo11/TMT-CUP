@@ -12,10 +12,16 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modelo de prueba (temporal) para confirmar que Prisma y Neon
-// se conectan bien. Lo borraremos en la FASE 3.
-model HealthCheck {
+// Una categoría solo puede ser uno de estos dos valores fijos
+enum Category {
+  MASCULINO
+  FEMENINO
+}
+
+// Tabla de Equipos
+model Team {
   id        Int      @id @default(autoincrement())
-  message   String
+  name      String
+  category  Category
   createdAt DateTime @default(now())
 }
