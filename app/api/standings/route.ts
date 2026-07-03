@@ -1,19 +1,47 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
+
+type Team = {
+  id: number;
+  name: string;
+};
+
+type StandingRow = {
+  teamId: number;
+  team: string;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  gf: number;
+  gc: number;
+  dg: number;
+  pts: number;
+};
 
 // GET /api/standings → tabla de posiciones de cada grupo
 export async function GET() {
-  const groups = await prisma.group.findMany({
-    include: { teams: true },
-  });
+  const { data: groups, error: groupsError } = await supabase
+    .from("groups")
+    .select("*, teams(*)");
+
+  if (groupsError) {
+    return Response.json({ error: groupsError.message }, { status: 500 });
+  }
 
   // Solo cuentan partidos TERMINADOS de la fase de grupos
-  const matches = await prisma.match.findMany({
-    where: { status: "FINALIZADO", phase: "GRUPOS" },
-  });
+  const { data: matches, error: matchesError } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("status", "FINALIZADO")
+    .eq("phase", "GRUPOS");
+
+  if (matchesError) {
+    return Response.json({ error: matchesError.message }, { status: 500 });
+  }
 
   const standings = groups.map((group) => {
-    const table = group.teams.map((team) => {
-      const row = {
+    const table = (group.teams as Team[]).map((team) => {
+      const row: StandingRow = {
         teamId: team.id,
         team: team.name,
         pj: 0,  // partidos jugados
@@ -31,12 +59,12 @@ export async function GET() {
         let golesFavor: number | null = null;
         let golesContra: number | null = null;
 
-        if (m.teamAId === team.id) {
-          golesFavor = m.scoreA;
-          golesContra = m.scoreB;
-        } else if (m.teamBId === team.id) {
-          golesFavor = m.scoreB;
-          golesContra = m.scoreA;
+        if (m.team_a_id === team.id) {
+          golesFavor = m.score_a;
+          golesContra = m.score_b;
+        } else if (m.team_b_id === team.id) {
+          golesFavor = m.score_b;
+          golesContra = m.score_a;
         }
 
         // No jugó aquí, o el partido no tiene marcador → no cuenta
@@ -62,11 +90,11 @@ export async function GET() {
     });
 
     // TU regla de clasificación: puntos → diferencia de gol → goles a favor
-    table.sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf);
+    table.sort((a: StandingRow, b: StandingRow) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf);
 
     return {
       group: group.name,
-      cancha: group.fieldNumber,
+      cancha: group.field_number,
       tabla: table, // los 2 primeros de esta lista clasifican
     };
   });

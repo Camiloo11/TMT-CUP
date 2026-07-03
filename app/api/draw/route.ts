@@ -1,10 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 // POST /api/draw → sorteo: baraja los equipos masculinos y los reparte en A-D
 export async function POST() {
-  const teams = await prisma.team.findMany({
-    where: { category: "MASCULINO" }, // el femenino no usa grupos
-  });
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("category", "MASCULINO"); // el femenino no usa grupos
+
+  if (teamsError) {
+    return Response.json({ error: teamsError.message }, { status: 500 });
+  }
 
   if (teams.length < 2) {
     return Response.json(
@@ -20,31 +25,23 @@ export async function POST() {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
 
-  const groupNames = ["A", "B", "C", "D"];
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Garantiza que existan los 4 grupos (tu regla: cancha 1=A ... cancha 4=D)
-    const groups = [];
-    for (let i = 0; i < groupNames.length; i++) {
-      let group = await tx.group.findFirst({ where: { name: groupNames[i] } });
-      if (!group) {
-        group = await tx.group.create({
-          data: { name: groupNames[i], fieldNumber: i + 1 },
-        });
-      }
-      groups.push(group);
-    }
-
-    // Reparto en ronda: 0→A, 1→B, 2→C, 3→D, 4→A, ...
-    for (let i = 0; i < shuffled.length; i++) {
-      await tx.team.update({
-        where: { id: shuffled[i].id },
-        data: { groupId: groups[i % 4].id },
-      });
-    }
-
-    return tx.group.findMany({ include: { teams: true } });
+  // Garantiza los 4 grupos (cancha 1=A ... cancha 4=D) y reparte en ronda
+  // 0→A, 1→B, 2→C, 3→D, 4→A, ... de forma atómica vía función RPC.
+  const { error: rpcError } = await supabase.rpc("perform_draw", {
+    team_ids: shuffled.map((t) => t.id),
   });
+
+  if (rpcError) {
+    return Response.json({ error: rpcError.message }, { status: 500 });
+  }
+
+  const { data: result, error } = await supabase
+    .from("groups")
+    .select("*, teams(*)");
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   return Response.json(result);
 }

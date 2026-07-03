@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TMT-CUP
+
+App para gestionar un torneo de fútbol (equipos, sorteo de grupos, partidos,
+tabla de posiciones y sanciones). Construida con [Next.js](https://nextjs.org)
+(App Router) y [Supabase](https://supabase.com) como base de datos.
+
+## Stack
+
+- **Next.js 16** (App Router, route handlers en `app/api/**`)
+- **Supabase** (Postgres administrado, sin ORM)
+- **Tailwind CSS 4**
+- **pnpm** como gestor de paquetes
+
+## Estructura del proyecto
+
+```
+app/
+  api/            # route handlers (teams, matches, draw, sanctions, standings)
+  layout.tsx      # layout raíz
+  page.tsx        # página principal
+lib/
+  supabase.ts     # cliente de Supabase (server-only, service_role key)
+supabase/
+  migrations/     # esquema SQL y funciones RPC
+  README.md       # cómo aplicar las migraciones y variables de entorno
+public/           # assets estáticos
+```
 
 ## Getting Started
 
-First, run the development server:
+Instala las dependencias con pnpm:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Configura las variables de entorno (ver `supabase/README.md` para el detalle
+y cómo obtenerlas):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# .env.local
+SUPABASE_URL=https://<tu-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Aplica las migraciones de base de datos (ver `supabase/README.md`), y luego
+levanta el servidor de desarrollo:
 
-## Learn More
+```bash
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Comando        | Descripción                       |
+| -------------- | ---------------------------------- |
+| `pnpm dev`     | Servidor de desarrollo             |
+| `pnpm build`   | Build de producción                |
+| `pnpm start`   | Sirve el build de producción       |
+| `pnpm lint`    | Linter (ESLint)                    |
 
-## Deploy on Vercel
+## API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Ruta                    | Métodos      | Descripción                              |
+| ------------------------ | ------------ | ----------------------------------------- |
+| `/api/teams`             | GET, POST    | Listar / crear equipos                    |
+| `/api/matches`           | GET, POST    | Listar / programar partidos               |
+| `/api/matches/[id]`      | PATCH        | Registrar el resultado de un partido      |
+| `/api/draw`              | POST         | Sorteo de grupos (equipos masculinos)     |
+| `/api/standings`         | GET          | Tabla de posiciones por grupo             |
+| `/api/sanctions`         | GET, POST    | Historial / aplicar sanciones             |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Base de datos
+
+Toda la lógica de acceso a datos vive en `app/api/**` usando el cliente de
+`lib/supabase.ts`. Ver `supabase/README.md` para el esquema completo, cómo
+aplicar migraciones y por qué algunas operaciones usan funciones RPC en vez
+de llamadas directas.

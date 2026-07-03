@@ -1,11 +1,16 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 // GET /api/sanctions → historial de sanciones
 export async function GET() {
-  const sanctions = await prisma.sanction.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { team: true, match: true },
-  });
+  const { data: sanctions, error } = await supabase
+    .from("sanctions")
+    .select("*, team:teams(*), match:matches(*)")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
   return Response.json(sanctions);
 }
 
@@ -31,77 +36,45 @@ export async function POST(request: Request) {
 
   // ── W_2MIN: solo se registra (el efecto es en cancha) ──
   if (body.type === "W_2MIN") {
-    const sanction = await prisma.sanction.create({
-      data: { teamId: body.teamId, matchId: body.matchId, type: body.type, note: body.note },
-    });
+    const { data: sanction, error } = await supabase
+      .from("sanctions")
+      .insert({ team_id: body.teamId, match_id: body.matchId, type: body.type, note: body.note })
+      .select()
+      .single();
+
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+
     return Response.json(sanction, { status: 201 });
   }
 
-  // ── W_4MIN y W_6MIN: afectan el marcador ──
+  // ── W_4MIN y W_6MIN: afectan el marcador (transacción atómica vía RPC) ──
   if (body.type === "W_4MIN" || body.type === "W_6MIN") {
-    const match = await prisma.match.findUnique({ where: { id: body.matchId } });
-    if (!match) {
-      return Response.json({ error: "Partido no encontrado" }, { status: 404 });
-    }
-    if (match.teamAId !== body.teamId && match.teamBId !== body.teamId) {
-      return Response.json({ error: "Ese equipo no juega ese partido" }, { status: 400 });
-    }
+    const { data: sanction, error } = await supabase.rpc("apply_w_sanction", {
+      p_team_id: body.teamId,
+      p_match_id: body.matchId,
+      p_type: body.type,
+      p_note: body.note ?? null,
+    });
 
-    const sancionadoEsA = match.teamAId === body.teamId;
-    const scoreRival = body.type === "W_4MIN" ? 1 : 3; // 0-1 arranca | 3-0 perdido
-
-    const [sanction] = await prisma.$transaction([
-      prisma.sanction.create({
-        data: { teamId: body.teamId, matchId: body.matchId, type: body.type, note: body.note },
-      }),
-      prisma.match.update({
-        where: { id: match.id },
-        data: {
-          scoreA: sancionadoEsA ? 0 : scoreRival,
-          scoreB: sancionadoEsA ? scoreRival : 0,
-          status: body.type === "W_6MIN" ? "FINALIZADO" : "EN_JUEGO",
-        },
-      }),
-    ]);
+    if (error) {
+      const status = error.message.includes("no encontrado") ? 404 : 400;
+      return Response.json({ error: error.message }, { status });
+    }
 
     return Response.json(sanction, { status: 201 });
   }
 
-  // ── INASISTENCIA: cada rival del grupo gana 3-0 "de oficio" ──
-  const team = await prisma.team.findUnique({ where: { id: body.teamId } });
-  if (!team || !team.groupId) {
-    return Response.json(
-      { error: "El equipo no existe o no tiene grupo asignado" },
-      { status: 400 }
-    );
+  // ── INASISTENCIA: cada rival del grupo gana 3-0 "de oficio" (RPC atómica) ──
+  const { data: sanction, error } = await supabase.rpc("apply_inasistencia_sanction", {
+    p_team_id: body.teamId,
+    p_note: body.note ?? null,
+  });
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 400 });
   }
-
-  const rivals = await prisma.team.findMany({
-    where: { groupId: team.groupId, id: { not: team.id } },
-  });
-
-  const sanction = await prisma.$transaction(async (tx) => {
-    const s = await tx.sanction.create({
-      data: { teamId: team.id, type: "INASISTENCIA", note: body.note },
-    });
-
-    for (const rival of rivals) {
-      await tx.match.create({
-        data: {
-          phase: "GRUPOS",
-          status: "FINALIZADO",
-          fieldNumber: 0, // 0 = partido "de oficio", no se juega en cancha
-          scheduledAt: new Date(),
-          teamAId: rival.id,
-          teamBId: team.id,
-          scoreA: 3,
-          scoreB: 0,
-        },
-      });
-    }
-
-    return s;
-  });
 
   return Response.json(sanction, { status: 201 });
 }

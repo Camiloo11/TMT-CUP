@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 // PATCH /api/matches/[id] → registrar el resultado de un partido
 export async function PATCH(
@@ -22,20 +22,29 @@ export async function PATCH(
   }
 
   // ¿Existe el partido? Nunca actualices a ciegas
-  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("id", matchId)
+    .maybeSingle();
   if (!match) {
     return Response.json({ error: "Partido no encontrado" }, { status: 404 });
   }
 
-  const updated = await prisma.match.update({
-    where: { id: matchId },
-    data: {
-      scoreA: body.scoreA,
-      scoreB: body.scoreB,
+  const { data: updated, error } = await supabase
+    .from("matches")
+    .update({
+      score_a: body.scoreA,
+      score_b: body.scoreB,
       status: "FINALIZADO", // registrar marcador = partido terminado
-    },
-    include: { teamA: true, teamB: true },
-  });
+    })
+    .eq("id", matchId)
+    .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*)")
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   return Response.json(updated);
 }

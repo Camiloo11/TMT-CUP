@@ -1,10 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 // GET /api/teams → lista todos los equipos con sus jugadores
 export async function GET() {
-  const teams = await prisma.team.findMany({
-    include: { players: true },
-  });
+  const { data: teams, error } = await supabase
+    .from("teams")
+    .select("*, players(*)");
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
   return Response.json(teams);
 }
 
@@ -20,12 +25,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const team = await prisma.team.create({
-    data: {
-      name: body.name,
-      category: body.category,
-    },
-  });
+  const { data: team, error } = await supabase
+    .from("teams")
+    .insert({ name: body.name, category: body.category })
+    .select()
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   return Response.json(team, { status: 201 }); // 201 = "creado con éxito"
 }
