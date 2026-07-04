@@ -8,8 +8,8 @@ Este proyecto usa [Supabase](https://supabase.com) (Postgres administrado) como
 ```
 supabase/
   migrations/
-    20260703000000_init_schema.sql   # enums, tablas, índices, RLS
-    20260703000001_rpc_functions.sql # funciones para operaciones atómicas
+    20260703000000_create_tables.sql    # enums, tablas, índices, RLS
+    20260703000001_create_functions.sql # funciones para operaciones atómicas
 ```
 
 ## Aplicar las migraciones
@@ -52,4 +52,4 @@ como sí hacía `prisma.$transaction`. Para las operaciones que deben ser
 atómicas (el sorteo de grupos y las sanciones que afectan marcadores/crean
 partidos en cadena) se usan funciones `plpgsql` (`perform_draw`,
 `apply_w_sanction`, `apply_inasistencia_sanction`) definidas en
-`20260703000001_rpc_functions.sql` e invocadas vía `supabase.rpc(...)`.
+`20260703000001_create_functions.sql` e invocadas vía `supabase.rpc(...)`.
