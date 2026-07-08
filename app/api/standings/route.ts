@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 type Team = {
   id: number;
@@ -20,6 +20,7 @@ type StandingRow = {
 
 // GET /api/standings → tabla de posiciones de cada grupo
 export async function GET() {
+  const supabase = getSupabase();
   const { data: groups, error: groupsError } = await supabase
     .from("groups")
     .select("*, teams(*)");

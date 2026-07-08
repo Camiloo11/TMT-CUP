@@ -1,65 +1,948 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import logo from "./Logo_tMtCup.svg";
+
+type View = "config" | "dashboard" | "waiting" | "live" | "summary";
+type MatchStatus = "upcoming" | "live" | "finished";
+type Filter = "upcoming" | "live" | "finished";
+type TeamSide = "home" | "away";
+type EventKind = "goal" | "yellow" | "red";
+type SupervisorName = "ANA" | "MARIO" | "SOFIA" | "DIEGO";
+
+type MatchCard = {
+  id: string;
+  time: string;
+  phase: string;
+  homeTeam: string;
+  awayTeam: string;
+  status: MatchStatus;
+  readyNow?: boolean;
+};
+
+type Player = {
+  id: string;
+  name: string;
+};
+
+type LiveEvent = {
+  id: string;
+  playerId: string;
+  team: TeamSide;
+  kind: EventKind;
+  minute: number;
+};
+
+type Incident = {
+  id: string;
+  label: string;
+  note: string;
+};
+
+type Report = {
+  title: string;
+  subtitle: string;
+  score: string;
+  goals: Array<{ label: string; team: string }>;
+  cards: Array<{ label: string; team: string }>;
+  incidents: Incident[];
+  walkover?: string;
+};
+
+const supervisors: SupervisorName[] = ["ANA", "MARIO", "SOFIA", "DIEGO"];
+
+const matches: MatchCard[] = [
+  {
+    id: "m1",
+    time: "08:00",
+    phase: "Grupo A - Jornada 1",
+    homeTeam: "Raptors FC",
+    awayTeam: "North Stars",
+    status: "finished",
+  },
+  {
+    id: "m2",
+    time: "08:32",
+    phase: "Grupo A - Jornada 1",
+    homeTeam: "Blue Tigers",
+    awayTeam: "Iron United",
+    status: "upcoming",
+    readyNow: true,
+  },
+  {
+    id: "m3",
+    time: "09:00",
+    phase: "Grupo B - Jornada 1",
+    homeTeam: "Red Lions",
+    awayTeam: "Storm Club",
+    status: "live",
+  },
+  {
+    id: "m4",
+    time: "09:26",
+    phase: "Grupo B - Jornada 1",
+    homeTeam: "Atlas FC",
+    awayTeam: "Phoenix Junior",
+    status: "upcoming",
+  },
+  {
+    id: "m5",
+    time: "09:52",
+    phase: "Ruta de Playoff - Ronda 1",
+    homeTeam: "Green Valley",
+    awayTeam: "Orchid Athletic",
+    status: "upcoming",
+  },
+  {
+    id: "m6",
+    time: "10:18",
+    phase: "Ruta de Playoff - Ronda 1",
+    homeTeam: "Galaxy FC",
+    awayTeam: "Vortex United",
+    status: "upcoming",
+  },
+];
+
+const homePlayers: Player[] = [
+  { id: "h1", name: "Lucas Ferreira" },
+  { id: "h2", name: "Mateo Silva" },
+  { id: "h3", name: "Andrés Ramos" },
+  { id: "h4", name: "Bruno Costa" },
+  { id: "h5", name: "Sergio Luna" },
+  { id: "h6", name: "Thiago Pérez" },
+  { id: "h7", name: "Diego Mora" },
+  { id: "h8", name: "Jonas Vidal" },
+];
+
+const awayPlayers: Player[] = [
+  { id: "a1", name: "Carlos Mendes" },
+  { id: "a2", name: "Rafael Torres" },
+  { id: "a3", name: "Nicolás Fuentes" },
+  { id: "a4", name: "Marcos Vidal" },
+  { id: "a5", name: "Esteban Rojas" },
+  { id: "a6", name: "Pablo Herrera" },
+  { id: "a7", name: "Kevin Alves" },
+  { id: "a8", name: "Oliver Núñez" },
+];
+
+const matchDuration = 26 * 60;
+const waitingDuration = 6 * 60;
+
+function createEmptyEvents() {
+  return { home: {}, away: {} } as Record<TeamSide, Record<string, LiveEvent[]>>;
+}
+
+function createEmptyPresence() {
+  return { home: false, away: false };
+}
+
+function formatClock(totalSeconds: number) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (safeSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function isPlayerSentOff(events: Record<string, LiveEvent[]>, playerId: string) {
+  return events[playerId]?.some((event) => event.kind === "red") ?? false;
+}
+
+function getLatestEvent(events: Record<string, LiveEvent[]>, playerId: string) {
+  const playerEvents = events[playerId] ?? [];
+  return playerEvents[playerEvents.length - 1] ?? null;
+}
+
+function countGoals(events: Record<TeamSide, Record<string, LiveEvent[]>>) {
+  const countForSide = (side: TeamSide) =>
+    Object.values(events[side]).reduce((total, playerEvents) => {
+      return total + playerEvents.filter((event) => event.kind === "goal").length;
+    }, 0);
+
+  return { home: countForSide("home"), away: countForSide("away") };
+}
+
+function buildReport(params: {
+  match: MatchCard;
+  score: { home: number; away: number };
+  events: Record<TeamSide, Record<string, LiveEvent[]>>;
+  incidents: Incident[];
+  walkover?: string;
+}) {
+  const goals = [
+    ...Object.entries(params.events.home).flatMap(([playerId, playerEvents]) =>
+      playerEvents
+        .filter((event) => event.kind === "goal")
+        .map(() => {
+          const player = homePlayers.find((entry) => entry.id === playerId);
+          return {
+            label: player?.name ?? "Jugador local",
+            team: params.match.homeTeam,
+          };
+        }),
+    ),
+    ...Object.entries(params.events.away).flatMap(([playerId, playerEvents]) =>
+      playerEvents
+        .filter((event) => event.kind === "goal")
+        .map(() => {
+          const player = awayPlayers.find((entry) => entry.id === playerId);
+          return {
+            label: player?.name ?? "Jugador visitante",
+            team: params.match.awayTeam,
+          };
+        }),
+    ),
+  ];
+
+  const cards = [
+    ...Object.entries(params.events.home).flatMap(([playerId, playerEvents]) =>
+      playerEvents
+        .filter((event) => event.kind === "yellow" || event.kind === "red")
+        .map((event) => {
+          const player = homePlayers.find((entry) => entry.id === playerId);
+          return {
+            label: `${player?.name ?? "Jugador local"} · ${event.kind === "yellow" ? "Amarilla" : "Roja"}`,
+            team: params.match.homeTeam,
+          };
+        }),
+    ),
+    ...Object.entries(params.events.away).flatMap(([playerId, playerEvents]) =>
+      playerEvents
+        .filter((event) => event.kind === "yellow" || event.kind === "red")
+        .map((event) => {
+          const player = awayPlayers.find((entry) => entry.id === playerId);
+          return {
+            label: `${player?.name ?? "Jugador visitante"} · ${event.kind === "yellow" ? "Amarilla" : "Roja"}`,
+            team: params.match.awayTeam,
+          };
+        }),
+    ),
+  ];
+
+  return {
+    title: `${params.match.homeTeam} vs ${params.match.awayTeam}`,
+    subtitle: `${params.match.phase} · ${params.match.time}`,
+    score: `${params.score.home} - ${params.score.away}`,
+    goals,
+    cards,
+    incidents: params.incidents,
+    walkover: params.walkover,
+  } satisfies Report;
+}
 
 export default function Home() {
+  const [view, setView] = useState<View>("config");
+  const [supervisor, setSupervisor] = useState<SupervisorName>("ANA");
+  const [activeFilter, setActiveFilter] = useState<Filter>("upcoming");
+  const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[1]);
+  const [waitingSeconds, setWaitingSeconds] = useState(waitingDuration);
+  const [presence, setPresence] = useState(createEmptyPresence);
+  const [liveSeconds, setLiveSeconds] = useState(matchDuration);
+  const [paused, setPaused] = useState(false);
+  const [extraTimeUnlocked, setExtraTimeUnlocked] = useState(false);
+  const [eventsByTeam, setEventsByTeam] = useState(createEmptyEvents);
+  const [openEventMenu, setOpenEventMenu] = useState<{
+    team: TeamSide;
+    playerId: string;
+  } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<{
+    team: TeamSide;
+    playerId: string;
+    eventId: string;
+  } | null>(null);
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incidentDraft, setIncidentDraft] = useState("");
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [report, setReport] = useState<Report | null>(null);
+  const [locked, setLocked] = useState(false);
+
+  const score = countGoals(eventsByTeam);
+
+  useEffect(() => {
+    if (view !== "waiting" || waitingSeconds === 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setWaitingSeconds((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [view, waitingSeconds]);
+
+  useEffect(() => {
+    if (view !== "live" || paused || liveSeconds === 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setLiveSeconds((current) => {
+        if (current <= 1) {
+          setExtraTimeUnlocked(true);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [view, paused, liveSeconds]);
+
+  const readyMatches = matches.filter((match) => match.status === activeFilter);
+  const presenceCount = Number(presence.home) + Number(presence.away);
+  const warningText =
+    waitingSeconds > 240
+      ? { text: "Esperando a los equipos... (Sin sanción)", tone: "text-slate-700" }
+      : waitingSeconds > 120
+        ? { text: "ALERTA: El equipo tardío inicia con 1 jugador menos", tone: "text-[#f7c600]" }
+        : { text: "ALERTA: El equipo tardío inicia con 2 jugadores menos y un 0-1 en contra", tone: "text-[#f83636]" };
+
+  const waitingActionLabel =
+    waitingSeconds === 0
+      ? presenceCount === 0
+        ? "Declarar doble walkover"
+        : presenceCount === 1
+          ? "Declarar walkover completo"
+          : "Equipos en cancha"
+      : "Equipos en cancha";
+
+  function beginMatchLifecycle(match: MatchCard) {
+    setSelectedMatch(match);
+    setWaitingSeconds(waitingDuration);
+    setPresence(createEmptyPresence());
+    setLiveSeconds(matchDuration);
+    setPaused(false);
+    setExtraTimeUnlocked(false);
+    setEventsByTeam(createEmptyEvents());
+    setOpenEventMenu(null);
+    setUndoTarget(null);
+    setIncidentOpen(false);
+    setIncidentDraft("");
+    setIncidents([]);
+    setReport(null);
+    setLocked(false);
+    setView("waiting");
+  }
+
+  function togglePresence(team: TeamSide) {
+    setPresence((current) => ({ ...current, [team]: !current[team] }));
+  }
+
+  function registerEvent(team: TeamSide, playerId: string, kind: EventKind) {
+    const event: LiveEvent = {
+      id: `${playerId}-${kind}-${Date.now()}`,
+      playerId,
+      team,
+      kind,
+      minute: Math.max(1, 26 - Math.ceil(liveSeconds / 60)),
+    };
+
+    setEventsByTeam((current) => ({
+      ...current,
+      [team]: {
+        ...current[team],
+        [playerId]: [...(current[team][playerId] ?? []), event],
+      },
+    }));
+
+    setUndoTarget({ team, playerId, eventId: event.id });
+    setOpenEventMenu(null);
+  }
+
+  function undoEvent() {
+    if (!undoTarget) {
+      return;
+    }
+
+    setEventsByTeam((current) => {
+      const playerEvents = current[undoTarget.team][undoTarget.playerId] ?? [];
+      return {
+        ...current,
+        [undoTarget.team]: {
+          ...current[undoTarget.team],
+          [undoTarget.playerId]: playerEvents.filter((event) => event.id !== undoTarget.eventId),
+        },
+      };
+    });
+
+    setUndoTarget(null);
+  }
+
+  function submitIncident() {
+    if (!incidentDraft.trim()) {
+      return;
+    }
+
+    setIncidents((current) => [
+      ...current,
+      {
+        id: `incident-${Date.now()}`,
+        label: "Nota rápida del incidente",
+        note: incidentDraft.trim(),
+      },
+    ]);
+    setIncidentDraft("");
+    setIncidentOpen(false);
+  }
+
+  function advanceWaiting() {
+    if (waitingSeconds === 0 && presenceCount < 2) {
+      const walkover = presenceCount === 0 ? "Double walkover" : "Full walkover";
+      setReport(
+        buildReport({
+          match: selectedMatch,
+          score,
+          events: eventsByTeam,
+          incidents,
+          walkover,
+        }),
+      );
+      setView("summary");
+      return;
+    }
+
+    setView("live");
+  }
+
+  function addExtraTime() {
+    setExtraTimeUnlocked(true);
+    setLiveSeconds((current) => current + 120);
+    setPaused(false);
+  }
+
+  function finishMatch() {
+    setReport(
+      buildReport({
+        match: selectedMatch,
+        score,
+        events: eventsByTeam,
+        incidents,
+      }),
+    );
+    setView("summary");
+  }
+
+  function saveAndLock() {
+    setLocked(true);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen px-4 py-4 pb-8 text-[15px] text-[color:var(--foreground)] sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-md flex-col gap-4 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-[0_24px_80px_rgba(35,60,151,0.12)] backdrop-blur-xl sm:max-w-lg">
+        {view === "config" && (
+          <section className="flex flex-1 flex-col justify-between gap-6">
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-3 rounded-[1.6rem] border border-[color:var(--danger)]/18 bg-[linear-gradient(135deg,rgba(248,54,54,0.14),rgba(247,198,0,0.18))] p-4 shadow-[0_12px_30px_rgba(248,54,54,0.08)] backdrop-blur-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-[1.3rem] bg-white/90 shadow-[0_10px_24px_rgba(35,60,151,0.12)]">
+                  <Image src={logo} alt="Logo TMT CUP" className="h-12 w-12 object-contain" priority />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[color:var(--danger)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white">
+                    Control de cancha
+                  </div>
+                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--primary)]">Supervisor de partido</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Vista del supervisor</p>
+                <h1 className="text-3xl font-semibold leading-tight text-[color:var(--primary)]">
+                  Control rápido para torneos intensos.
+                </h1>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--danger)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(255,248,225,0.9))] p-4 shadow-[0_12px_30px_rgba(35,60,151,0.08)] backdrop-blur-md">
+              <label className="block text-sm font-semibold text-slate-700" htmlFor="supervisor-select">
+                Selecciona al supervisor
+              </label>
+              <select
+                id="supervisor-select"
+                className="h-14 w-full rounded-[1.2rem] border border-[color:var(--border)] bg-white px-4 text-base font-semibold text-slate-800 outline-none ring-0"
+                value={supervisor}
+                onChange={(event) => setSupervisor(event.target.value as SupervisorName)}
+              >
+                {supervisors.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="rounded-[1.5rem] border border-dashed border-[color:var(--danger)]/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(247,198,0,0.24))] p-4 text-sm leading-6 text-slate-700 backdrop-blur-md">
+                Hoy estás en <span className="font-semibold text-[color:var(--primary)]">CANCHA 1</span> con el árbitro: {" "}
+                <span className="font-semibold text-slate-900">CARLOS MOLINA</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setView("dashboard")}
+              className="h-16 rounded-full bg-[color:var(--primary)] px-6 text-base font-semibold text-white shadow-[0_12px_30px_rgba(35,60,151,0.25)] transition-transform active:scale-[0.99]"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Confirmar y comenzar la jornada
+            </button>
+          </section>
+        )}
+
+        {view === "dashboard" && (
+          <section className="flex flex-1 flex-col gap-4">
+            <header className="rounded-[1.6rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_14px_32px_rgba(35,60,151,0.24)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.28em] text-white/75">Cancha asignada</p>
+                  <h2 className="text-2xl font-semibold">CANCHA 1</h2>
+                </div>
+                <div className="rounded-full bg-white/12 px-3 py-2 text-sm font-semibold backdrop-blur-md">Partidos: 2/6</div>
+              </div>
+              <p className="mt-2 text-sm text-white/85">El supervisor {supervisor} está habilitado para la jornada.</p>
+            </header>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(["upcoming", "live", "finished"] as Filter[]).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setActiveFilter(filter)}
+                  className={`h-12 rounded-full border px-3 text-sm font-semibold capitalize transition ${
+                    activeFilter === filter
+                      ? "border-[color:var(--primary)] bg-[color:var(--primary)] text-white shadow-[0_10px_24px_rgba(35,60,151,0.18)]"
+                      : "border-[color:var(--border)] bg-white text-slate-700"
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto pb-1">
+              {readyMatches.map((match) => (
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => beginMatchLifecycle(match)}
+                  className={`w-full rounded-[1.6rem] border bg-white p-4 text-left shadow-[0_10px_24px_rgba(16,32,76,0.06)] transition active:scale-[0.995] ${
+                    match.readyNow ? "border-[color:var(--danger)] border-dashed animate-pulse" : "border-[color:var(--border)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{match.time}</p>
+                      <p className="mt-1 text-sm font-semibold text-[color:var(--primary)]">{match.phase}</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        match.status === "upcoming"
+                          ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
+                          : match.status === "live"
+                            ? "bg-emerald-500/15 text-emerald-700"
+                            : "bg-slate-500/12 text-slate-600"
+                      }`}
+                    >
+                      {match.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-900">{match.homeTeam}</p>
+                      <p className="text-sm text-slate-500">vs {match.awayTeam}</p>
+                    </div>
+                    {match.readyNow && (
+                      <span className="rounded-full bg-[color:var(--danger)]/12 px-3 py-2 text-xs font-semibold text-[color:var(--danger)]">
+                        Listo para modo de espera
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {view === "waiting" && (
+          <section className="flex flex-1 flex-col gap-4">
+            <header className="rounded-[1.75rem] bg-[linear-gradient(135deg,var(--primary),#1a2f79)] p-4 text-white shadow-[0_16px_40px_rgba(35,60,151,0.22)]">
+              <div className="flex items-center justify-between gap-3 text-sm uppercase tracking-[0.26em] text-white/70">
+                <span>{selectedMatch.time}</span>
+                <span>{selectedMatch.phase}</span>
+              </div>
+              <div className="mt-4 text-center">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/70">Modo de espera</p>
+                <div className="font-[family-name:var(--font-modak)] text-7xl leading-none text-[color:var(--accent)] drop-shadow-[0_4px_0_rgba(0,0,0,0.1)] sm:text-8xl">
+                  {formatClock(waitingSeconds)}
+                </div>
+              </div>
+            </header>
+
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { key: "home", label: selectedMatch.homeTeam },
+                { key: "away", label: selectedMatch.awayTeam },
+              ] as const).map((team) => {
+                const isPresent = presence[team.key];
+                return (
+                  <button
+                    key={team.key}
+                    type="button"
+                    onClick={() => togglePresence(team.key)}
+                    className={`flex aspect-square flex-col items-center justify-center rounded-full border-4 p-4 text-center transition active:scale-[0.98] ${
+                      isPresent
+                        ? "border-emerald-500 bg-emerald-500/12 text-emerald-800"
+                        : "border-[color:var(--primary)] bg-white text-[color:var(--primary)]"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Toca cuando esté presente</span>
+                    <span className="mt-2 text-lg font-semibold leading-tight">{team.label}</span>
+                    <span className={`mt-3 rounded-full px-4 py-2 text-xs font-semibold ${isPresent ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}>
+                      {isPresent ? "Presente" : "Marcar presente"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className={`rounded-[1.5rem] border p-4 text-center text-sm font-semibold ${warningText.tone} bg-white/75`}>{warningText.text}</div>
+
+            <button
+              type="button"
+              onClick={advanceWaiting}
+              className={`mt-auto h-16 rounded-full px-6 text-base font-semibold text-white shadow-[0_14px_32px_rgba(35,60,151,0.22)] transition active:scale-[0.99] ${
+                waitingSeconds === 0 && presenceCount < 2 ? "bg-[color:var(--danger)]" : "bg-[color:var(--primary)]"
+              }`}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              {waitingActionLabel}
+            </button>
+          </section>
+        )}
+
+        {view === "live" && (
+          <section className="flex flex-1 flex-col gap-4 pb-16">
+            <header className="rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(35,60,151,1),rgba(21,36,84,1))] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.24)]">
+              <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.26em] text-white/70">
+                <span>{selectedMatch.phase}</span>
+                <span>CANCHA 1</span>
+              </div>
+              <div className="mt-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm text-white/75">Cronómetro del partido</p>
+                  <div className="font-[family-name:var(--font-modak)] text-6xl leading-none text-[color:var(--accent)] sm:text-7xl">
+                    {formatClock(liveSeconds)}
+                  </div>
+                </div>
+                <button type="button" onClick={() => setPaused((current) => !current)} className="h-14 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur-md">
+                  {paused ? "Reanudar" : "Pausa"}
+                </button>
+              </div>
+              <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 text-center backdrop-blur-md">
+                <span className="font-[family-name:var(--font-modak)] text-6xl leading-none sm:text-7xl">
+                  {score.home} - {score.away}
+                </span>
+              </div>
+            </header>
+
+            <div className="grid gap-3">
+              <RosterPanel
+                title={selectedMatch.homeTeam}
+                side="home"
+                players={homePlayers}
+                events={eventsByTeam.home}
+                openEventMenu={openEventMenu}
+                onOpenEventMenu={setOpenEventMenu}
+                onRegisterEvent={registerEvent}
+                onRequestUndo={setUndoTarget}
+                undoTarget={undoTarget}
+              />
+
+              <RosterPanel
+                title={selectedMatch.awayTeam}
+                side="away"
+                players={awayPlayers}
+                events={eventsByTeam.away}
+                openEventMenu={openEventMenu}
+                onOpenEventMenu={setOpenEventMenu}
+                onRegisterEvent={registerEvent}
+                onRequestUndo={setUndoTarget}
+                undoTarget={undoTarget}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIncidentOpen(true)}
+              className="fixed bottom-6 right-6 z-20 h-16 w-16 rounded-full bg-[color:var(--danger)] text-2xl font-semibold text-white shadow-[0_16px_36px_rgba(248,54,54,0.35)] ring-4 ring-white/50"
+              aria-label="Open incident report"
+            >
+              !
+            </button>
+
+            <div className="sticky bottom-0 z-10 -mx-4 mt-2 border-t border-[color:var(--border)] bg-white/90 px-4 py-3 backdrop-blur-xl">
+              <div className="flex gap-2">
+                {extraTimeUnlocked && (
+                  <button
+                    type="button"
+                    onClick={addExtraTime}
+                    className="h-14 flex-1 rounded-full border border-[color:var(--border)] bg-white px-4 text-sm font-semibold text-[color:var(--primary)]"
+                  >
+                    + Añadir tiempo extra
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={finishMatch}
+                  className="h-14 flex-1 rounded-full bg-[color:var(--primary)] px-4 text-sm font-semibold text-white"
+                >
+                  Finalizar y publicar partido
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {view === "summary" && report && (
+          <section className="flex flex-1 flex-col gap-4">
+            <header className="rounded-[1.8rem] bg-[linear-gradient(135deg,var(--primary),#1a2f79)] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.22)]">
+              <p className="text-xs uppercase tracking-[0.28em] text-white/70">Informe del partido</p>
+              <h2 className="mt-2 text-2xl font-semibold">Resumen y bloqueo</h2>
+              <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 backdrop-blur-md">
+                <div className="text-center font-[family-name:var(--font-modak)] text-7xl leading-none text-[color:var(--accent)]">{report.score}</div>
+                <p className="mt-2 text-center text-sm text-white/80">{report.title}</p>
+                <p className="text-center text-xs uppercase tracking-[0.24em] text-white/60">{report.subtitle}</p>
+              </div>
+            </header>
+
+            <div className="space-y-3 overflow-y-auto pb-1">
+              <SummarySection title="Goles">
+                {report.goals.length === 0 ? (
+                  <SummaryEmpty>No se registraron goles.</SummaryEmpty>
+                ) : (
+                  report.goals.map((goal, index) => <SummaryRow key={`${goal.label}-${index}`} primary={goal.label} secondary={goal.team} accent="Gol" />)
+                )}
+              </SummarySection>
+
+              <SummarySection title="Tarjetas">
+                {report.cards.length === 0 ? (
+                  <SummaryEmpty>No se registraron tarjetas.</SummaryEmpty>
+                ) : (
+                  report.cards.map((card, index) => <SummaryRow key={`${card.label}-${index}`} primary={card.label} secondary={card.team} accent="Tarjeta" />)
+                )}
+              </SummarySection>
+
+              <SummarySection title="Incidentes">
+                {report.incidents.length === 0 ? (
+                  <SummaryEmpty>No se registraron notas de incidentes.</SummaryEmpty>
+                ) : (
+                  report.incidents.map((incident) => <SummaryRow key={incident.id} primary={incident.note} secondary={incident.label} accent="Nota" />)
+                )}
+              </SummarySection>
+
+              {report.walkover && (
+                <div className="rounded-[1.4rem] border border-[color:var(--danger)]/20 bg-[color:var(--danger)]/10 p-4 text-sm font-semibold text-[color:var(--danger)]">
+                  Estado de walkover: {report.walkover}
+                </div>
+              )}
+            </div>
+
+            {locked && <div className="rounded-[1.4rem] border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-700">Los datos del partido quedaron bloqueados y enviados a mesa de control.</div>}
+
+            <button
+              type="button"
+              onClick={saveAndLock}
+              disabled={locked}
+              className="mt-auto h-16 rounded-full bg-[color:var(--primary)] px-6 text-base font-semibold text-white disabled:opacity-70"
+            >
+              Guardar y enviar a mesa de control
+            </button>
+          </section>
+        )}
+      </div>
+
+      {incidentOpen && (
+        <div className="fixed inset-0 z-30 flex items-end justify-center bg-slate-950/45 px-4 py-4 backdrop-blur-md sm:items-center">
+          <div className="w-full max-w-md rounded-[1.8rem] border border-white/20 bg-white/92 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Incidente rápido</p>
+                <h3 className="text-xl font-semibold text-[color:var(--primary)]">Reporte exprés</h3>
+              </div>
+              <button type="button" onClick={() => setIncidentOpen(false)} className="rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600">
+                Close
+              </button>
+            </div>
+            <textarea
+              value={incidentDraft}
+              onChange={(event) => setIncidentDraft(event.target.value)}
+              placeholder="Delay, medical note, field issue..."
+              className="mt-4 h-32 w-full rounded-[1.2rem] border border-[color:var(--border)] bg-white p-4 text-sm outline-none"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button type="button" onClick={submitIncident} className="mt-3 h-14 w-full rounded-full bg-[color:var(--danger)] px-4 text-sm font-semibold text-white">
+              Guardar nota del incidente
+            </button>
+          </div>
         </div>
-      </main>
+      )}
+
+      {undoTarget && view === "live" && (
+        <div className="fixed bottom-24 left-1/2 z-30 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-full border border-[color:var(--border)] bg-white/95 px-4 py-3 text-center shadow-[0_16px_40px_rgba(15,23,42,0.15)] backdrop-blur-md">
+          <button type="button" onClick={undoEvent} className="text-sm font-semibold text-[color:var(--danger)]">
+            Deshacer último evento
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function RosterPanel({
+  title,
+  side,
+  players,
+  events,
+  openEventMenu,
+  onOpenEventMenu,
+  onRegisterEvent,
+  onRequestUndo,
+  undoTarget,
+}: {
+  title: string;
+  side: TeamSide;
+  players: Player[];
+  events: Record<string, LiveEvent[]>;
+  openEventMenu: { team: TeamSide; playerId: string } | null;
+  onOpenEventMenu: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: string } | null>>;
+  onRegisterEvent: (team: TeamSide, playerId: string, kind: EventKind) => void;
+  onRequestUndo: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: string; eventId: string } | null>>;
+  undoTarget: { team: TeamSide; playerId: string; eventId: string } | null;
+}) {
+  return (
+    <div className="rounded-[1.6rem] border border-[color:var(--border)] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,76,0.06)]">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{side === "home" ? "Equipo local" : "Equipo visitante"}</p>
+          <h3 className="text-lg font-semibold text-[color:var(--primary)]">{title}</h3>
+        </div>
+        <span className="rounded-full bg-[color:var(--accent)]/18 px-3 py-1 text-xs font-semibold text-[#8d6b00]">Plantilla en vivo</span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {players.map((player) => {
+          const sentOff = isPlayerSentOff(events, player.id);
+          const latestEvent = getLatestEvent(events, player.id);
+          const hasUndoTarget = undoTarget?.playerId === player.id && undoTarget?.team === side;
+
+          return (
+            <div
+              key={player.id}
+              className={`rounded-[1.25rem] border px-3 py-3 ${
+                sentOff ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-400 opacity-70" : "border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(246,248,255,1))]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{player.name}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    {latestEvent && (
+                      <span
+                        className={`rounded-full px-2.5 py-1 ${
+                          latestEvent.kind === "goal"
+                            ? "bg-emerald-500/15 text-emerald-700"
+                            : latestEvent.kind === "yellow"
+                              ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
+                              : "bg-[color:var(--danger)]/15 text-[color:var(--danger)]"
+                        }`}
+                      >
+                        {latestEvent.kind === "goal" ? "⚽" : latestEvent.kind === "yellow" ? "🟨" : "🟥"} {latestEvent.kind}
+                      </span>
+                    )}
+                    {hasUndoTarget && (
+                      <button
+                        type="button"
+                        onClick={() => onRequestUndo({ team: side, playerId: player.id, eventId: undoTarget.eventId })}
+                        className="rounded-full bg-slate-900 px-2.5 py-1 text-white"
+                      >
+                        Undo
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenEventMenu({ team: side, playerId: player.id })}
+                  disabled={sentOff}
+                  className="h-11 w-11 rounded-full bg-[color:var(--primary)] text-lg font-semibold text-white disabled:bg-slate-300"
+                  aria-label={`Open actions for ${player.name}`}
+                >
+                  +
+                </button>
+              </div>
+
+              {openEventMenu?.playerId === player.id && openEventMenu.team === side && !sentOff && (
+                <div className="mt-3 rounded-[1.15rem] border border-white/60 bg-white/80 p-2 shadow-[0_10px_24px_rgba(16,32,76,0.08)] backdrop-blur-md">
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { kind: "goal", label: "⚽ Goal" },
+                      { kind: "yellow", label: "🟨 Yellow" },
+                      { kind: "red", label: "🟥 Red" },
+                    ] as const).map((action) => (
+                      <button
+                        key={action.kind}
+                        type="button"
+                        onClick={() => onRegisterEvent(side, player.id, action.kind)}
+                        className={`rounded-full px-2 py-2 text-xs font-semibold text-white ${
+                          action.kind === "goal"
+                            ? "bg-emerald-600"
+                            : action.kind === "yellow"
+                              ? "bg-[color:var(--accent)] text-slate-900"
+                              : "bg-[color:var(--danger)]"
+                        }`}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+}
+
+function SummarySection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-[1.6rem] border border-[color:var(--border)] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,76,0.06)]">
+      <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">{title}</h3>
+      <div className="mt-3 space-y-2">{children}</div>
+    </section>
+  );
+}
+
+function SummaryRow({
+  primary,
+  secondary,
+  accent,
+}: {
+  primary: string;
+  secondary: string;
+  accent: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-[1.2rem] bg-slate-50 px-3 py-3">
+      <div>
+        <p className="font-semibold text-slate-900">{primary}</p>
+        <p className="text-xs text-slate-500">{secondary}</p>
+      </div>
+      <span className="rounded-full bg-[color:var(--primary)]/12 px-3 py-1 text-xs font-semibold text-[color:var(--primary)]">{accent}</span>
+    </div>
+  );
+}
+
+function SummaryEmpty({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-[1.2rem] bg-slate-50 px-3 py-3 text-sm text-slate-500">{children}</div>;
 }

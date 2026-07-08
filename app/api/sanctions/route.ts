@@ -1,7 +1,8 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 // GET /api/sanctions → historial de sanciones
 export async function GET() {
+  const supabase = getSupabase();
   const { data: sanctions, error } = await supabase
     .from("sanctions")
     .select("*, team:teams(*), match:matches(*)")
@@ -16,6 +17,7 @@ export async function GET() {
 
 // POST /api/sanctions → aplicar una sanción Y sus efectos automáticos
 export async function POST(request: Request) {
+  const supabase = getSupabase();
   const body = await request.json();
 
   const validTypes = ["W_2MIN", "W_4MIN", "W_6MIN", "INASISTENCIA"];

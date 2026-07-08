@@ -1,10 +1,11 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 // PATCH /api/matches/[id] → registrar el resultado de un partido
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const supabase = getSupabase();
   const { id } = await params;      // el número que viene en la URL
   const matchId = Number(id);
 

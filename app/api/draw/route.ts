@@ -1,7 +1,8 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 // POST /api/draw → sorteo: baraja los equipos masculinos y los reparte en A-D
 export async function POST() {
+  const supabase = getSupabase();
   const { data: teams, error: teamsError } = await supabase
     .from("teams")
     .select("id")

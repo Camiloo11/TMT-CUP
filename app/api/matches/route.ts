@@ -1,7 +1,8 @@
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 // GET /api/matches → todos los partidos, ordenados por fecha, con sus equipos
 export async function GET() {
+  const supabase = getSupabase();
   const { data: matches, error } = await supabase
     .from("matches")
     .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*)")
@@ -16,6 +17,7 @@ export async function GET() {
 
 // POST /api/matches → programar un partido nuevo
 export async function POST(request: Request) {
+  const supabase = getSupabase();
   const body = await request.json();
 
   if (!body.teamAId || !body.teamBId || !body.scheduledAt || !body.fieldNumber || !body.phase) {
