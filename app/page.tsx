@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import logo from "./Logo_tMtCup.svg";
 
 type View = "config" | "dashboard" | "waiting" | "live" | "summary";
@@ -9,7 +9,7 @@ type MatchStatus = "upcoming" | "live" | "finished";
 type Filter = "upcoming" | "live" | "finished";
 type TeamSide = "home" | "away";
 type EventKind = "goal" | "yellow" | "red";
-type SupervisorName = "ANA" | "MARIO" | "SOFIA" | "DIEGO";
+type SupervisorName = "Ana Beltrán" | "Mario Silva" | "Sofía Ramos" | "Diego Costa";
 
 type MatchCard = {
   id: string;
@@ -50,7 +50,7 @@ type Report = {
   walkover?: string;
 };
 
-const supervisors: SupervisorName[] = ["ANA", "MARIO", "SOFIA", "DIEGO"];
+const supervisors: SupervisorName[] = ["Ana Beltrán", "Mario Silva", "Sofía Ramos", "Diego Costa"];
 
 const matches: MatchCard[] = [
   {
@@ -234,7 +234,8 @@ function buildReport(params: {
 
 export default function Home() {
   const [view, setView] = useState<View>("config");
-  const [supervisor, setSupervisor] = useState<SupervisorName>("ANA");
+  const [supervisor, setSupervisor] = useState<SupervisorName | "">("");
+  const [supervisorMenuOpen, setSupervisorMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>("upcoming");
   const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[1]);
   const [waitingSeconds, setWaitingSeconds] = useState(waitingDuration);
@@ -257,6 +258,8 @@ export default function Home() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [report, setReport] = useState<Report | null>(null);
   const [locked, setLocked] = useState(false);
+  const supervisorSelectRef = useRef<HTMLDivElement | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
 
   const score = countGoals(eventsByTeam);
 
@@ -290,6 +293,28 @@ export default function Home() {
 
     return () => window.clearInterval(timer);
   }, [view, paused, liveSeconds]);
+
+  useEffect(() => {
+    function handleDocumentMouseDown(event: MouseEvent) {
+      if (!supervisorSelectRef.current) {
+        return;
+      }
+
+      if (!supervisorSelectRef.current.contains(event.target as Node)) {
+        setSupervisorMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+
+    return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, []);
+
+  useEffect(() => {
+    if (view !== "config") {
+      setSupervisorMenuOpen(false);
+    }
+  }, [view]);
 
   const readyMatches = matches.filter((match) => match.status === activeFilter);
   const presenceCount = Number(presence.home) + Number(presence.away);
@@ -325,6 +350,11 @@ export default function Home() {
     setReport(null);
     setLocked(false);
     setView("waiting");
+  }
+
+  function selectSupervisor(name: SupervisorName) {
+    setSupervisor(name);
+    setSupervisorMenuOpen(false);
   }
 
   function togglePresence(team: TeamSide) {
@@ -430,66 +460,120 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-4 pb-8 text-[15px] text-[color:var(--foreground)] sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-md flex-col gap-4 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-[0_24px_80px_rgba(35,60,151,0.12)] backdrop-blur-xl sm:max-w-lg">
-        {view === "config" && (
-          <section className="flex flex-1 flex-col justify-between gap-6">
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-3 rounded-[1.6rem] border border-[color:var(--danger)]/18 bg-[linear-gradient(135deg,rgba(248,54,54,0.14),rgba(247,198,0,0.18))] p-4 shadow-[0_12px_30px_rgba(248,54,54,0.08)] backdrop-blur-md">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[1.3rem] bg-white/90 shadow-[0_10px_24px_rgba(35,60,151,0.12)]">
-                  <Image src={logo} alt="Logo TMT CUP" className="h-12 w-12 object-contain" priority />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[color:var(--danger)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white">
-                    Control de cancha
+    <main className="min-h-screen bg-[color:var(--background)] px-4 py-6 pb-8 text-[15px] text-[color:var(--foreground)] sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center gap-6 sm:max-w-lg">
+        {/* VISTA DE CONFIGURACIÓN */}
+        {(view === "config" || (view === "dashboard" && isExiting)) && (
+          <section className={`space-y-6 w-full ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
+            {/* Logo mucho más grande */}
+            <div className="flex justify-center pt-2">
+              <Image
+                src={logo}
+                alt="Logo TMT CUP"
+                className="h-80 w-80 object-contain sm:h-96 sm:w-96 drop-shadow-[0_12px_24px_rgba(35,60,151,0.12)]"
+                priority
+              />
+            </div>
+
+            <div className="space-y-6 rounded-[2rem] border border-[#d8def3] bg-white p-6 shadow-[0_20px_40px_rgba(35,60,151,0.05)]">
+              {/* Título centrado, más grueso y azul */}
+              <div className="space-y-1 text-center">
+                <label className="block text-2xl sm:text-3xl font-medium tracking-wide text-[color:var(--primary)] font-[family-name:var(--font-sans)]" htmlFor="supervisor-select">
+                  Selecciona tu perfil
+                </label>
+                <p className="text-sm text-slate-400 font-normal">
+                  Elige tu nombre para acceder a la mesa de control
+                </p>
+              </div>
+
+              <div className="relative" ref={supervisorSelectRef}>
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={supervisorMenuOpen}
+                  onClick={() => setSupervisorMenuOpen((current) => !current)}
+                  className="flex h-16 w-full items-center justify-between gap-4 rounded-[1.25rem] border-2 border-[#c9d1f0] bg-[#f9fbff] px-5 text-left text-base font-semibold text-[color:var(--foreground)] outline-none transition-all duration-200 focus:border-[color:var(--primary)] focus:bg-white focus:shadow-[0_0_0_5px_rgba(35,60,151,0.1)]"
+                >
+                  <span className={supervisor ? "text-[color:var(--foreground)]" : "text-slate-400"}>
+                    {supervisor || "Elige tu nombre..."}
+                  </span>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    className={`h-5 w-5 shrink-0 text-[color:var(--primary)] transition-transform ${supervisorMenuOpen ? "rotate-180" : "rotate-0"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {supervisorMenuOpen && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-56 overflow-y-auto rounded-[1.25rem] border border-[#c9d1f0] bg-white p-2 shadow-[0_20px_40px_rgba(35,60,151,0.12)] animate-select-dropdown"
+                  >
+                    {supervisors.map((name) => {
+                      const selected = supervisor === name;
+
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => selectSupervisor(name)}
+                          className={`flex w-full items-center justify-between rounded-[1rem] px-4 py-3 text-left text-base font-semibold transition ${selected ? "bg-[color:var(--primary)] text-white" : "bg-white text-[color:var(--foreground)] hover:bg-[#eef3ff]"}`}
+                        >
+                          <span>{name}</span>
+                          {selected && <span className="text-sm font-bold text-[color:var(--accent)]">Seleccionado</span>}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--primary)]">Supervisor de partido</p>
+                )}
+              </div>
+
+              {/* Información Auxiliar del Arbitraje */}
+              {supervisor && (
+                <div className="grid gap-3 rounded-[1.5rem] border border-[#e2e8f5] bg-[#f9fbff]/60 p-4 text-sm sm:grid-cols-2 animate-fade-in">
+                  <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
+                    <p className="text-xs font-medium text-slate-400">Árbitro central</p>
+                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">Carlos Molina</p>
+                  </div>
+                  <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
+                    <p className="text-xs font-medium text-slate-400">Cancha asignada</p>
+                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">Cancha 1</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Vista del supervisor</p>
-                <h1 className="text-3xl font-semibold leading-tight text-[color:var(--primary)]">
-                  Control rápido para torneos intensos.
-                </h1>
-              </div>
+              )}
             </div>
 
-            <div className="space-y-4 rounded-[1.75rem] border border-[color:var(--danger)]/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(255,248,225,0.9))] p-4 shadow-[0_12px_30px_rgba(35,60,151,0.08)] backdrop-blur-md">
-              <label className="block text-sm font-semibold text-slate-700" htmlFor="supervisor-select">
-                Selecciona al supervisor
-              </label>
-              <select
-                id="supervisor-select"
-                className="h-14 w-full rounded-[1.2rem] border border-[color:var(--border)] bg-white px-4 text-base font-semibold text-slate-800 outline-none ring-0"
-                value={supervisor}
-                onChange={(event) => setSupervisor(event.target.value as SupervisorName)}
+            {/* Botón de Ingreso con Desplazamiento Lateral Coherente */}
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                disabled={!supervisor || isExiting}
+                onClick={() => {
+                  setIsExiting(true);
+                  // Cambiamos de vista inmediatamente para que empiece a renderizarse el Dashboard y su animación de entrada
+                  setView("dashboard");
+                  setTimeout(() => {
+                    setIsExiting(false);
+                  }, 350); // Sincronizado con la duración de la animación CSS
+                }}
+                className="flex h-15 w-full max-w-[260px] items-center justify-center rounded-[1.25rem] bg-[color:var(--primary)] px-6 text-lg font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none"
               >
-                {supervisors.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-
-              <div className="rounded-[1.5rem] border border-dashed border-[color:var(--danger)]/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(247,198,0,0.24))] p-4 text-sm leading-6 text-slate-700 backdrop-blur-md">
-                Hoy estás en <span className="font-semibold text-[color:var(--primary)]">CANCHA 1</span> con el árbitro: {" "}
-                <span className="font-semibold text-slate-900">CARLOS MOLINA</span>
-              </div>
+                Ingresar al panel
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setView("dashboard")}
-              className="h-16 rounded-full bg-[color:var(--primary)] px-6 text-base font-semibold text-white shadow-[0_12px_30px_rgba(35,60,151,0.25)] transition-transform active:scale-[0.99]"
-            >
-              Confirmar y comenzar la jornada
-            </button>
           </section>
         )}
 
+        {/* VISTA DEL DASHBOARD / PANEL PRINCIPAL */}
         {view === "dashboard" && (
-          <section className="flex flex-1 flex-col gap-4">
+          <section className={`flex flex-1 flex-col gap-4 w-full ${isExiting ? "animate-view-enter-right" : ""}`}>
             <header className="rounded-[1.6rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_14px_32px_rgba(35,60,151,0.24)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -507,11 +591,10 @@ export default function Home() {
                   key={filter}
                   type="button"
                   onClick={() => setActiveFilter(filter)}
-                  className={`h-12 rounded-full border px-3 text-sm font-semibold capitalize transition ${
-                    activeFilter === filter
-                      ? "border-[color:var(--primary)] bg-[color:var(--primary)] text-white shadow-[0_10px_24px_rgba(35,60,151,0.18)]"
-                      : "border-[color:var(--border)] bg-white text-slate-700"
-                  }`}
+                  className={`h-12 rounded-full border px-3 text-sm font-semibold capitalize transition ${activeFilter === filter
+                    ? "border-[color:var(--primary)] bg-[color:var(--primary)] text-white shadow-[0_10px_24px_rgba(35,60,151,0.18)]"
+                    : "border-[color:var(--border)] bg-white text-slate-700"
+                    }`}
                 >
                   {filter}
                 </button>
@@ -524,9 +607,8 @@ export default function Home() {
                   key={match.id}
                   type="button"
                   onClick={() => beginMatchLifecycle(match)}
-                  className={`w-full rounded-[1.6rem] border bg-white p-4 text-left shadow-[0_10px_24px_rgba(16,32,76,0.06)] transition active:scale-[0.995] ${
-                    match.readyNow ? "border-[color:var(--danger)] border-dashed animate-pulse" : "border-[color:var(--border)]"
-                  }`}
+                  className={`w-full rounded-[1.6rem] border bg-white p-4 text-left shadow-[0_10px_24px_rgba(16,32,76,0.06)] transition active:scale-[0.995] ${match.readyNow ? "border-[color:var(--danger)] border-dashed animate-pulse" : "border-[color:var(--border)]"
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -534,13 +616,12 @@ export default function Home() {
                       <p className="mt-1 text-sm font-semibold text-[color:var(--primary)]">{match.phase}</p>
                     </div>
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        match.status === "upcoming"
-                          ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
-                          : match.status === "live"
-                            ? "bg-emerald-500/15 text-emerald-700"
-                            : "bg-slate-500/12 text-slate-600"
-                      }`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${match.status === "upcoming"
+                        ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
+                        : match.status === "live"
+                          ? "bg-emerald-500/15 text-emerald-700"
+                          : "bg-slate-500/12 text-slate-600"
+                        }`}
                     >
                       {match.status}
                     </span>
@@ -565,7 +646,7 @@ export default function Home() {
 
         {view === "waiting" && (
           <section className="flex flex-1 flex-col gap-4">
-            <header className="rounded-[1.75rem] bg-[linear-gradient(135deg,var(--primary),#1a2f79)] p-4 text-white shadow-[0_16px_40px_rgba(35,60,151,0.22)]">
+            <header className="rounded-[1.75rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_16px_40px_rgba(35,60,151,0.18)]">
               <div className="flex items-center justify-between gap-3 text-sm uppercase tracking-[0.26em] text-white/70">
                 <span>{selectedMatch.time}</span>
                 <span>{selectedMatch.phase}</span>
@@ -589,11 +670,10 @@ export default function Home() {
                     key={team.key}
                     type="button"
                     onClick={() => togglePresence(team.key)}
-                    className={`flex aspect-square flex-col items-center justify-center rounded-full border-4 p-4 text-center transition active:scale-[0.98] ${
-                      isPresent
-                        ? "border-emerald-500 bg-emerald-500/12 text-emerald-800"
-                        : "border-[color:var(--primary)] bg-white text-[color:var(--primary)]"
-                    }`}
+                    className={`flex aspect-square flex-col items-center justify-center rounded-full border-4 p-4 text-center transition active:scale-[0.98] ${isPresent
+                      ? "border-emerald-500 bg-emerald-500/12 text-emerald-800"
+                      : "border-[color:var(--primary)] bg-white text-[color:var(--primary)]"
+                      }`}
                   >
                     <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Toca cuando esté presente</span>
                     <span className="mt-2 text-lg font-semibold leading-tight">{team.label}</span>
@@ -610,9 +690,8 @@ export default function Home() {
             <button
               type="button"
               onClick={advanceWaiting}
-              className={`mt-auto h-16 rounded-full px-6 text-base font-semibold text-white shadow-[0_14px_32px_rgba(35,60,151,0.22)] transition active:scale-[0.99] ${
-                waitingSeconds === 0 && presenceCount < 2 ? "bg-[color:var(--danger)]" : "bg-[color:var(--primary)]"
-              }`}
+              className={`mt-auto h-16 rounded-full px-6 text-base font-semibold text-white shadow-[0_14px_32px_rgba(35,60,151,0.22)] transition active:scale-[0.99] ${waitingSeconds === 0 && presenceCount < 2 ? "bg-[color:var(--danger)]" : "bg-[color:var(--primary)]"
+                }`}
             >
               {waitingActionLabel}
             </button>
@@ -621,7 +700,7 @@ export default function Home() {
 
         {view === "live" && (
           <section className="flex flex-1 flex-col gap-4 pb-16">
-            <header className="rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(35,60,151,1),rgba(21,36,84,1))] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.24)]">
+            <header className="rounded-[1.75rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
               <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.26em] text-white/70">
                 <span>{selectedMatch.phase}</span>
                 <span>CANCHA 1</span>
@@ -704,7 +783,7 @@ export default function Home() {
 
         {view === "summary" && report && (
           <section className="flex flex-1 flex-col gap-4">
-            <header className="rounded-[1.8rem] bg-[linear-gradient(135deg,var(--primary),#1a2f79)] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.22)]">
+            <header className="rounded-[1.8rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
               <p className="text-xs uppercase tracking-[0.28em] text-white/70">Informe del partido</p>
               <h2 className="mt-2 text-2xl font-semibold">Resumen y bloqueo</h2>
               <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 backdrop-blur-md">
@@ -836,9 +915,8 @@ function RosterPanel({
           return (
             <div
               key={player.id}
-              className={`rounded-[1.25rem] border px-3 py-3 ${
-                sentOff ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-400 opacity-70" : "border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(246,248,255,1))]"
-              }`}
+              className={`rounded-[1.25rem] border px-3 py-3 ${sentOff ? "pointer-events-none border-slate-200 bg-slate-100 text-slate-400 opacity-70" : "border-[color:var(--border)] bg-white"
+                }`}
             >
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
@@ -846,13 +924,12 @@ function RosterPanel({
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold">
                     {latestEvent && (
                       <span
-                        className={`rounded-full px-2.5 py-1 ${
-                          latestEvent.kind === "goal"
-                            ? "bg-emerald-500/15 text-emerald-700"
-                            : latestEvent.kind === "yellow"
-                              ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
-                              : "bg-[color:var(--danger)]/15 text-[color:var(--danger)]"
-                        }`}
+                        className={`rounded-full px-2.5 py-1 ${latestEvent.kind === "goal"
+                          ? "bg-emerald-500/15 text-emerald-700"
+                          : latestEvent.kind === "yellow"
+                            ? "bg-[color:var(--accent)]/18 text-[#8d6b00]"
+                            : "bg-[color:var(--danger)]/15 text-[color:var(--danger)]"
+                          }`}
                       >
                         {latestEvent.kind === "goal" ? "⚽" : latestEvent.kind === "yellow" ? "🟨" : "🟥"} {latestEvent.kind}
                       </span>
@@ -892,13 +969,12 @@ function RosterPanel({
                         key={action.kind}
                         type="button"
                         onClick={() => onRegisterEvent(side, player.id, action.kind)}
-                        className={`rounded-full px-2 py-2 text-xs font-semibold text-white ${
-                          action.kind === "goal"
-                            ? "bg-emerald-600"
-                            : action.kind === "yellow"
-                              ? "bg-[color:var(--accent)] text-slate-900"
-                              : "bg-[color:var(--danger)]"
-                        }`}
+                        className={`rounded-full px-2 py-2 text-xs font-semibold text-white ${action.kind === "goal"
+                          ? "bg-emerald-600"
+                          : action.kind === "yellow"
+                            ? "bg-[color:var(--accent)] text-slate-900"
+                            : "bg-[color:var(--danger)]"
+                          }`}
                       >
                         {action.label}
                       </button>

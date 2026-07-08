@@ -12,24 +12,14 @@
   --success: #1f9d55;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-poppins);
-  --font-display: var(--font-modak);
-}
-
 html {
   min-height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(35, 60, 151, 0.24), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(247, 198, 0, 0.2), transparent 26%),
-    linear-gradient(180deg, #f7f9ff 0%, #e8eeff 100%);
+  background: #eef3ff;
 }
 
 body {
   min-height: 100vh;
-  background: transparent;
+  background: #eef3ff;
   color: var(--foreground);
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
 }
@@ -48,4 +38,60 @@ select,
 input,
 textarea {
   font: inherit;
+}
+
+@keyframes bounceHorizontal {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
+
+.animate-bounce-horizontal {
+  animation: bounceHorizontal 1.5s infinite ease-in-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-select-dropdown {
+  animation: fadeInDown 200ms ease-out both;
+}
+
+/* La vista actual sale hacia la izquierda */
+@keyframes slideOutLeft {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+/* La nueva vista entra desde la derecha */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-view-exit-left {
+  animation: slideOutLeft 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-view-enter-right {
+  animation: slideInRight 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
