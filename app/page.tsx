@@ -464,7 +464,8 @@ export default function Home() {
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center gap-6 sm:max-w-lg">
         {/* VISTA DE CONFIGURACIÓN */}
         {(view === "config" || (view === "dashboard" && isExiting)) && (
-          <section className={`space-y-6 w-full ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
+          <section className={`space-y-6 w-full min-h-[80vh] flex flex-col justify-between ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
+            <div className="space-y-6">
             {/* Logo mucho más grande */}
             <div className="flex justify-center pt-2">
               <Image
@@ -568,6 +569,10 @@ export default function Home() {
                 Ingresar al panel
               </button>
             </div>
+
+            </div>
+
+            <ConfigFooter />
           </section>
         )}
 
@@ -1021,4 +1026,43 @@ function SummaryRow({
 
 function SummaryEmpty({ children }: { children: React.ReactNode }) {
   return <div className="rounded-[1.2rem] bg-slate-50 px-3 py-3 text-sm text-slate-500">{children}</div>;
+}
+
+
+function ConfigFooter() {
+  return (
+    <footer className="w-full pt-8 pb-4 text-center space-y-4 animate-fade-in border-t border-[color:var(--border)]/40 mt-auto">
+      {/* Versículo / Lema Inspirador */}
+      <p className="text-xs italic font-medium text-slate-400 max-w-xs mx-auto leading-relaxed">
+        "Hagan todo con amor, incluso en la cancha."
+      </p>
+
+      {/* Enlaces de Redes y Sitio Web */}
+      <div className="flex items-center justify-center gap-6 text-sm font-medium text-[color:var(--primary)] opacity-80">
+        <a 
+          href="https://tuiglesia.com" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="transition hover:opacity-100 hover:underline"
+        >
+          Sitio Web Iglesia
+        </a>
+        <span className="h-3 w-px bg-slate-300"></span>
+        <a 
+          href="https://instagram.com/jovenes" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-1 transition hover:opacity-100 hover:underline"
+        >
+          Instagram Jóvenes
+        </a>
+      </div>
+
+      {/* Copyright y Versión */}
+      <div className="text-[11px] font-normal text-slate-400 space-y-1">
+        <p>© 2026 tMt Cup • Ministerio de Jóvenes</p>
+        <p className="text-[10px] opacity-60">Mesa de Control v1.2</p>
+      </div>
+    </footer>
+  );
 }
