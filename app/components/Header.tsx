@@ -3,10 +3,12 @@
 import Image from "next/image";
 
 type HeaderProps = {
-  activeTab: string;
-  setActiveTab: (tabId: string) => void;
+  activeTab?: string;
+  setActiveTab?: (tabId: string) => void;
 };
 
+// Sin props (ej: panel del supervisor) el header muestra solo el logo,
+// sin la barra de pestañas de la vista pública.
 export default function LayoutPrueba({ activeTab, setActiveTab }: HeaderProps) {
 
   const tabs = [
@@ -33,7 +35,8 @@ export default function LayoutPrueba({ activeTab, setActiveTab }: HeaderProps) {
           />
         </div>
 
-        {/* BARRA DE NAVEGACIÓN (Pista Hundida) */}
+        {/* BARRA DE NAVEGACIÓN (Pista Hundida) — solo si hay pestañas */}
+        {activeTab !== undefined && setActiveTab !== undefined && (
         <nav className="relative flex-1 grid grid-cols-3 p-1 bg-[#10204c]/[0.05] rounded-full shadow-[inset_0_2px_4px_rgba(16,32,76,0.06)] border border-[#10204c]/[0.01]">
           
           {/* INDICADOR DESLIZANTE SÓLIDO (Píldora Limpia) */}
@@ -51,7 +54,7 @@ export default function LayoutPrueba({ activeTab, setActiveTab }: HeaderProps) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab?.(tab.id)}
                 className={`
                   relative py-2 text-xs font-bold rounded-full transition-all duration-200 select-none outline-none text-center z-10
                   ${
@@ -67,6 +70,7 @@ export default function LayoutPrueba({ activeTab, setActiveTab }: HeaderProps) {
             );
           })}
         </nav>
+        )}
       </div>
     </header>
   );
