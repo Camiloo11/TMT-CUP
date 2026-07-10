@@ -16,6 +16,8 @@ type StandingRow = {
   gc: number;
   dg: number;
   pts: number;
+  amarillas: number;
+  rojas: number;
 };
 
 // GET /api/standings → tabla de posiciones de cada grupo
@@ -40,6 +42,19 @@ export async function GET() {
     return Response.json({ error: matchesError.message }, { status: 500 });
   }
 
+  // Tarjetas acumuladas por equipo (para las columnas 🟨/🟥 de la tabla pública)
+  const { data: cardEvents } = await supabase
+    .from("match_events")
+    .select("team_id, type")
+    .in("type", ["AMARILLA", "ROJA"]);
+  const cardsByTeam = new Map<number, { amarillas: number; rojas: number }>();
+  for (const c of cardEvents ?? []) {
+    const entry = cardsByTeam.get(c.team_id) ?? { amarillas: 0, rojas: 0 };
+    if (c.type === "AMARILLA") entry.amarillas++;
+    else entry.rojas++;
+    cardsByTeam.set(c.team_id, entry);
+  }
+
   const standings = groups.map((group) => {
     const table = (group.teams as Team[]).map((team) => {
       const row: StandingRow = {
@@ -53,6 +68,8 @@ export async function GET() {
         gc: 0,  // goles en contra
         dg: 0,  // diferencia de gol
         pts: 0, // puntos
+        amarillas: cardsByTeam.get(team.id)?.amarillas ?? 0,
+        rojas: cardsByTeam.get(team.id)?.rojas ?? 0,
       };
 
       for (const m of matches) {

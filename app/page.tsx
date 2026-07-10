@@ -1,15 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
 import { TarjetaPartido } from "./components/TarjetaPartido";
 import { FaseEliminatoria } from "./components/FaseEliminatoria";
 
+
+// ── Datos en vivo desde el backend ──────────────────────────
+type StandingRow = {
+  teamId: number; team: string; pj: number; pg: number; pe: number; pp: number;
+  gf: number; gc: number; dg: number; pts: number; amarillas: number; rojas: number;
+};
+type GroupStanding = { group: string; cancha: number; tabla: StandingRow[] };
+type ApiEvent = {
+  id: number; type: string; minute: number | null; team_id: number;
+  player: { id: number; name: string } | null;
+};
+type ApiMatch = {
+  id: number; phase: string; status: string; field_number: number; scheduled_at: string;
+  team_a_id: number; team_b_id: number; score_a: number | null; score_b: number | null;
+  kickoff_at: string | null; walkover: string | null;
+  teamA: { name: string } | null; teamB: { name: string } | null; events?: ApiEvent[];
+};
+
+const phaseLabels: Record<string, string> = {
+  GRUPOS: "Fase de Grupos",
+  CUARTOS: "Cuartos de Final",
+  SEMIFINAL: "Semifinal",
+  FINAL: "Final",
+};
+
+function toTarjetaProps(m: ApiMatch) {
+  const estado =
+    m.status === "FINALIZADO" ? ("FINALIZADO" as const)
+    : m.status === "PROGRAMADO" ? ("PROXIMO" as const)
+    : ("VIVO" as const);
+
+  const resumen = (m.events ?? [])
+    .slice()
+    .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
+    .map((e) => ({
+      minuto: `${e.minute ?? 0}'`,
+      texto: e.player?.name ?? "Gol de oficio",
+      tipo: (e.type === "GOL" ? "gol" : e.type === "AMARILLA" ? "amarilla" : "roja") as
+        "gol" | "amarilla" | "roja",
+      lado: (e.team_id === m.team_a_id ? "local" : "visitante") as "local" | "visitante",
+    }));
+
+  const minuto =
+    estado === "VIVO" && m.kickoff_at
+      ? `${Math.max(1, Math.floor((Date.now() - new Date(m.kickoff_at).getTime()) / 60000))}'`
+      : undefined;
+
+  return {
+    liga: phaseLabels[m.phase] ?? m.phase,
+    cancha: `Cancha ${m.field_number}`,
+    estado,
+    minuto,
+    fechaHora: new Date(m.scheduled_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+    equipoLocal: m.teamA?.name ?? "Equipo A",
+    golesLocal: m.score_a ?? 0,
+    equipoVisita: m.teamB?.name ?? "Equipo B",
+    golesVisita: m.score_b ?? 0,
+    resumen,
+  };
+}
+
 export default function PublicLivePage() {
   // Estado compartido para controlar la navegación síncrona
   const [activeTab, setActiveTab] = useState("partidos");
+  const [standings, setStandings] = useState<GroupStanding[]>([]);
+  const [liveMatches, setLiveMatches] = useState<ApiMatch[]>([]);
+
+  useEffect(() => {
+    fetch("/api/standings").then((r) => r.json()).then(setStandings).catch(console.error);
+    fetch("/api/matches").then((r) => r.json()).then(setLiveMatches).catch(console.error);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
@@ -29,27 +97,20 @@ export default function PublicLivePage() {
               </h2>
             </div>
 
-            {/* Grupo A */}
-            <TablaGrupo 
-              nombreGrupo="Grupo A" 
-              equipos={[
-                { nombre: "Equipo Alpha", pj: 3, pg: 3, pe: 0, pp: 0, gf: 8, gc: 3, gd: 5, amarillas: 2, rojas: 0, pts: 9 },
-                { nombre: "Equipo Omega", pj: 3, pg: 2, pe: 0, pp: 1, gf: 5, gc: 3, gd: 2, amarillas: 4, rojas: 1, pts: 6 },
-                { nombre: "Equipo Éxodo", pj: 3, pg: 1, pe: 1, pp: 1, gf: 4, gc: 5, gd: -1, amarillas: 1, rojas: 0, pts: 4 },
-                { nombre: "Equipo Génesis", pj: 3, pg: 0, pe: 0, pp: 3, gf: 1, gc: 7, gd: -6, amarillas: 5, rojas: 2, pts: 0 },
-              ]}
-            />
-
-            {/* Grupo B */}
-            <TablaGrupo 
-              nombreGrupo="Grupo B" 
-              equipos={[
-                { nombre: "Equipo Beta", pj: 2, pg: 1, pe: 1, pp: 0, gf: 4, gc: 2, gd: 2, amarillas: 1, rojas: 0, pts: 4 },
-                { nombre: "Equipo Delta", pj: 2, pg: 1, pe: 0, pp: 1, gf: 3, gc: 3, gd: 0, amarillas: 3, rojas: 0, pts: 3 },
-                { nombre: "Equipo Gamma", pj: 2, pg: 0, pe: 2, pp: 0, gf: 2, gc: 2, gd: 0, amarillas: 2, rojas: 1, pts: 2 },
-                { nombre: "Equipo Zeta", pj: 2, pg: 0, pe: 1, pp: 1, gf: 1, gc: 3, gd: -2, amarillas: 0, rojas: 0, pts: 1 },
-              ]}
-            />
+            {standings.length === 0 ? (
+              <p className="text-center text-sm text-[#10204c]/40 py-8">Aún no hay grupos conformados.</p>
+            ) : (
+              standings.map((g) => (
+                <TablaGrupo
+                  key={g.group}
+                  nombreGrupo={`Grupo ${g.group}`}
+                  equipos={g.tabla.map((r) => ({
+                    nombre: r.team, pj: r.pj, pg: r.pg, pe: r.pe, pp: r.pp,
+                    gf: r.gf, gc: r.gc, gd: r.dg, amarillas: r.amarillas, rojas: r.rojas, pts: r.pts,
+                  }))}
+                />
+              ))
+            )}
           </div>
         )}
 
@@ -63,48 +124,11 @@ export default function PublicLivePage() {
               </h2>
             </div>
 
-            {/* 1. Partido En Vivo */}
-            <TarjetaPartido 
-              liga="Torneo Clausura"
-              cancha="Cancha 1"
-              estado="VIVO"
-              minuto="72'"
-              equipoLocal="Equipo Alpha"
-              golesLocal={2}
-              equipoVisita="Equipo Omega"
-              golesVisita={1}
-              resumen={[
-                { minuto: "12'", texto: "Mateo S.", tipo: "gol", lado: "local" },
-                { minuto: "18'", texto: "Juan D.", tipo: "gol", lado: "visitante" },
-                { minuto: "24'", texto: "Lucas G.", tipo: "gol", lado: "local" },
-                { minuto: "35'", texto: "Andrés M.", tipo: "amarilla", lado: "visitante" },
-              ]}
-            />
-
-            {/* 2. Partido Finalizado */}
-            <TarjetaPartido 
-              liga="Torneo Clausura"
-              cancha="Cancha 2"
-              estado="FINALIZADO"
-              equipoLocal="Equipo Éxodo"
-              golesLocal={0}
-              equipoVisita="Equipo Génesis"
-              golesVisita={2}
-              resumen={[
-                { minuto: "40'", texto: "Carlos R.", tipo: "gol", lado: "visitante" },
-                { minuto: "44'", texto: "Luis P.", tipo: "roja", lado: "local" },
-              ]}
-            />
-
-            {/* 3. Partido Próximo */}
-            <TarjetaPartido 
-              liga="Torneo Clausura"
-              cancha="Estadio Principal"
-              estado="PROXIMO"
-              fechaHora="Sáb 16:00"
-              equipoLocal="Equipo Beta"
-              equipoVisita="Equipo Delta"
-            />
+            {liveMatches.length === 0 ? (
+              <p className="text-center text-sm text-[#10204c]/40 py-8">No hay partidos programados todavía.</p>
+            ) : (
+              liveMatches.map((m) => <TarjetaPartido key={m.id} {...toTarjetaProps(m)} />)
+            )}
           </div>
         )}
 
