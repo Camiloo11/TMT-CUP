@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import Header from "@/app/components/Header";
+import HeaderSupervisor from "@/app/components/HeaderSupervisor";
 import Footer from "@/app/components/Footer";
 
 type View = "config" | "dashboard" | "waiting" | "live" | "summary";
@@ -424,7 +424,7 @@ export default function SupervisorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
       {/* Header Reutilizable */}
-      <Header />
+      <HeaderSupervisor />
 
       {/* Contenido Principal de la Mesa de Control */}
       <main className="flex-1 px-4 pb-16 text-[15px] text-[color:var(--foreground)] sm:px-6">

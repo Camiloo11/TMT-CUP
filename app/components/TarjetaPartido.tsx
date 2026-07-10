@@ -10,7 +10,6 @@ interface EventoPartido {
 }
 
 interface TarjetaPartidoProps {
-  liga?: string;
   estado: "VIVO" | "FINALIZADO" | "PROXIMO";
   minuto?: string; // Ej: "45'" o "MT"
   fechaHora?: string; // Ej: "18:00" o "Sáb 16:00"
@@ -25,7 +24,6 @@ interface TarjetaPartidoProps {
 }
 
 export function TarjetaPartido({
-  liga = "Torneo Clausura",
   estado,
   minuto,
   fechaHora,
@@ -83,7 +81,7 @@ export function TarjetaPartido({
       {/* HEADER DE LA TARJETA */}
       <div className="flex items-center justify-between border-b border-gray-50 pb-2 mb-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-[#10204c]/40">
-          {liga} {cancha && `• ${cancha}`}
+          {cancha || "Partido"}
         </span>
         <div className="flex items-center gap-2">
           <BadgeEstado />
@@ -121,12 +119,12 @@ export function TarjetaPartido({
           {estado === "PROXIMO" ? (
             <span className="text-xs font-bold text-[#10204c]/30">vs</span>
           ) : (
-            <div className="flex items-center justify-center gap-2">
-              <span className={`text-xl font-black ${estado === "VIVO" ? "text-[#233c97]" : "text-[#10204c]/70"}`}>
+            <div className="font-secondary-modak flex items-baseline justify-center gap-1 tabular-nums" style={{ fontSize: '3rem', lineHeight: 1 }}>
+              <span className={estado === "VIVO" ? "text-rose-600" : "text-[#233c97]"}>
                 {golesLocal}
               </span>
-              <span className="text-gray-300 font-light text-sm">:</span>
-              <span className={`text-xl font-black ${estado === "VIVO" ? "text-[#233c97]" : "text-[#10204c]/70"}`}>
+              <span className="text-gray-300 font-light text-3xl -mb-1">:</span>
+              <span className={estado === "VIVO" ? "text-rose-600" : "text-[#233c97]"}>
                 {golesVisita}
               </span>
             </div>
