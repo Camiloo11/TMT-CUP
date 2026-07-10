@@ -4,9 +4,8 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    /* Footer flotante estilo ios */
     <footer className="w-full px-4 pb-4 mt-auto font-poppins">
-      {/* Tarjeta contenedora compactada con py-6 y mt-12 */}
+      {/* Tarjeta contenedora compacta */}
       <div className="w-full max-w-md mx-auto bg-white/45 backdrop-blur-md border border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.06)] rounded-3xl py-6 px-6 relative mt-12">
         
         {/* Logo maximizado intersecado */}
@@ -21,7 +20,7 @@ export default function Footer() {
           />
         </div>
 
-        {/* Contenido en dos columnas con pt-6 y menor separación (gap-4) */}
+        {/* Contenido en dos columnas alineadas a los extremos */}
         <div className="grid grid-cols-2 gap-4 items-start text-sm pt-6">
           
           {/* Columna izquierda (Alineada a la izquierda) */}
@@ -49,7 +48,7 @@ export default function Footer() {
               </a>
             </div>
 
-            {/* Información de Contacto / Comunidad */}
+            {/* Información de Comunidad */}
             <div className="space-y-1">
               <span className="block text-[14px] font-medium tracking-wide text-[#10204c]/50">
                 Comunidad
@@ -89,7 +88,7 @@ export default function Footer() {
 
         </div>
 
-        {/* Separador intermedio más ajustado */}
+        {/* Separador intermedio */}
         <div className="w-full h-[1px] bg-[#10204c]/5 mt-5 mb-4" />
 
         {/* Texto de identidad (Quiénes somos) */}
@@ -102,7 +101,7 @@ export default function Footer() {
           </span>
         </div>
 
-        {/* Pie del footer: Separador sutil y derechos reservados */}
+        {/* Pie del footer */}
         <div className="w-full h-[1px] bg-[#10204c]/5 mt-4 mb-3" />
         <div className="text-center text-[10px] font-medium text-[#10204c]/30 tracking-widest">
           © 2026 tMt Cup • Ministerio de jóvenes
