@@ -17,6 +17,9 @@ const modak = Modak({
 export const metadata: Metadata = {
   title: "TMT CUP | Match Supervisor View",
   description: "Mobile-first match supervisor console for fast football tournaments.",
+  icons: {
+    icon: "/assets/Logo_tMtCup.svg",
+  },
 };
 
 export default function RootLayout({

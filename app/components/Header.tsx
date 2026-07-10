@@ -1,50 +1,112 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 
-export default function Header() {
+export default function LayoutPrueba() {
+  const [activeTab, setActiveTab] = useState("partidos");
+
   const tabs = [
     { id: "grupos", label: "Grupos" },
     { id: "partidos", label: "Partidos" },
     { id: "sorteos", label: "Sorteos" }
   ];
 
+  const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+
   return (
-    // Usamos el color de la iglesia con opacidad y un blur de fondo envolvente
-    <header className="sticky top-0 z-50 w-full bg-[color:var(--primary)]/85 backdrop-blur-md border-b border-white/10 text-white shadow-[0_4px_30px_rgba(35,60,151,0.1)]">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* Logo en la parte superior izquierda */}
-        <div className="flex items-center gap-2 group transition-all duration-300">
-          <div className="relative">
-            {/* Efecto de resplandor difuminado suave detrás del logo emulando tu código */}
-            <div className="absolute inset-0 bg-[color:var(--accent)] rounded-full blur-[8px] opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+    <div className="w-full min-h-screen bg-[#eef3ff] text-[#10204c] relative font-poppins">
+      
+      {/* 
+        HEADER CON COHESIÓN VISUAL E INTEGRACIÓN DE POPPINS
+        - font-poppins: Asegura el renderizado exacto de tu tipografía en todo el componente.
+        - bg-white/45 backdrop-blur-md: Cristal transparente limpio.
+        - border-b-2 border-white/40 shadow-[...]: Contorno y profundidad bien marcados.
+      */}
+      <header className="sticky top-0 z-50 w-full rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins">
+        <div className="w-full max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          
+          {/* LOGO */}
+          <div className="flex-shrink-0 relative flex items-center justify-center">
             <Image
               src="/assets/Logo_tMtCup.svg"
-              alt="Logo TMT CUP"
-              width={54}
-              height={54}
-              className="relative object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105"
+              alt="Logo oficial TMT CUP"
+              width={74}
+              height={74}
+              className="object-contain drop-shadow-md"
               priority
             />
           </div>
-          <span className="hidden text-xl font-bold tracking-wider text-[color:var(--accent)] sm:block">
-            tMt Cup
-          </span>
-        </div>
 
-        {/* Pestañas de navegación estilizadas con burbujas semi-transparentes */}
-        <nav className="flex gap-1 sm:gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className="rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 hover:bg-white/15 active:scale-95 bg-black/10 text-white/90 hover:text-white"
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-    </header>
+          {/* BARRA DE NAVEGACIÓN (Pista Hundida) */}
+          <nav className="relative flex-1 grid grid-cols-3 p-1 bg-[#10204c]/[0.05] rounded-full shadow-[inset_0_2px_4px_rgba(16,32,76,0.06)] border border-[#10204c]/[0.01]">
+            
+            {/* INDICADOR DESLIZANTE SÓLIDO (Píldora Limpia) */}
+            <div
+              className="absolute top-1 bottom-1 left-1 bg-white rounded-full border border-white shadow-[0_3px_10px_rgba(16,32,76,0.12),_0_1px_2px_rgba(16,32,76,0.04)] transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              style={{
+                width: "calc(33.3333% - 5px)",
+                transform: `translateX(calc(${activeIndex} * (100% + 2.5px)))`
+              }}
+            />
+
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    relative py-2 text-xs font-bold rounded-full transition-all duration-200 select-none outline-none text-center z-10
+                    ${
+                      isActive
+                        ? "text-[#233c97] font-extrabold scale-[1.02]"
+                        : "text-[#10204c]/50 hover:text-[#10204c]/80"
+                    }
+                    active:scale-[0.96] transition-transform
+                  `}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* CONTENIDO FEED (Mantiene Poppins por herencia) */}
+      <main className="w-full max-w-md mx-auto px-4 py-6 flex flex-col gap-4 pb-24">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[#233c97]/60 px-1">
+          Partidos en desarrollo ({activeTab})
+        </h2>
+
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="w-full p-4 bg-white/80 rounded-2xl border border-[#233c97]/10 shadow-sm flex flex-col gap-3">
+            <div className="flex justify-between items-center text-xs font-semibold opacity-60">
+              <span>Cancha Asignada #{i}</span>
+              <span className="text-[#233c97]">En juego</span>
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#233c97]/10 flex items-center justify-center font-bold text-xs">A{i}</div>
+                <span className="font-bold text-sm">Equipo Alpha</span>
+              </div>
+              <span className="text-xl font-black">2</span>
+            </div>
+
+            <div className="flex items-center justify-between py-2 border-t border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#f7c600]/20 flex items-center justify-center font-bold text-xs">B{i}</div>
+                <span className="font-bold text-sm">Equipo Omega</span>
+              </div>
+              <span className="text-xl font-black text-gray-400">0</span>
+            </div>
+          </div>
+        ))}
+      </main>
+
+    </div>
   );
 }
