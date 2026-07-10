@@ -1,15 +1,22 @@
-import { prisma } from "@/lib/prisma";
+import { getSupabase } from "@/lib/supabase";
 
 // GET /api/teams → lista todos los equipos con sus jugadores
 export async function GET() {
-  const teams = await prisma.team.findMany({
-    include: { players: true },
-  });
+  const supabase = getSupabase();
+  const { data: teams, error } = await supabase
+    .from("teams")
+    .select("*, players(*)");
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
   return Response.json(teams);
 }
 
 // POST /api/teams → crea un equipo nuevo
 export async function POST(request: Request) {
+  const supabase = getSupabase();
   const body = await request.json(); // lee el JSON que envía el cliente
 
   // Validación: nunca confíes en lo que te mandan
@@ -20,12 +27,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const team = await prisma.team.create({
-    data: {
-      name: body.name,
-      category: body.category,
-    },
-  });
+  const { data: team, error } = await supabase
+    .from("teams")
+    .insert({ name: body.name, category: body.category })
+    .select()
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   return Response.json(team, { status: 201 }); // 201 = "creado con éxito"
 }

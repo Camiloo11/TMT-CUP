@@ -1,16 +1,23 @@
-import { prisma } from "@/lib/prisma";
+import { getSupabase } from "@/lib/supabase";
 
 // GET /api/matches → todos los partidos, ordenados por fecha, con sus equipos
 export async function GET() {
-  const matches = await prisma.match.findMany({
-    orderBy: { scheduledAt: "asc" }, // 👈 del más próximo al más lejano
-    include: { teamA: true, teamB: true }, // 👈 trae los DOS hilos con nombre
-  });
+  const supabase = getSupabase();
+  const { data: matches, error } = await supabase
+    .from("matches")
+    .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*)")
+    .order("scheduled_at", { ascending: true }); // 👈 del más próximo al más lejano
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
   return Response.json(matches);
 }
 
 // POST /api/matches → programar un partido nuevo
 export async function POST(request: Request) {
+  const supabase = getSupabase();
   const body = await request.json();
 
   if (!body.teamAId || !body.teamBId || !body.scheduledAt || !body.fieldNumber || !body.phase) {
@@ -28,16 +35,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const match = await prisma.match.create({
-    data: {
-      teamAId: body.teamAId,
-      teamBId: body.teamBId,
-      scheduledAt: new Date(body.scheduledAt), // texto → fecha real
-      fieldNumber: body.fieldNumber,
+  const { data: match, error } = await supabase
+    .from("matches")
+    .insert({
+      team_a_id: body.teamAId,
+      team_b_id: body.teamBId,
+      scheduled_at: new Date(body.scheduledAt).toISOString(), // texto → fecha real
+      field_number: body.fieldNumber,
       phase: body.phase,
-    },
-    include: { teamA: true, teamB: true },
-  });
+    })
+    .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*)")
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   return Response.json(match, { status: 201 });
 }

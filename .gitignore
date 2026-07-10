@@ -40,4 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/app/generated/prisma
+# supabase (CLI local dev artifacts)
+/supabase/.branches
+/supabase/.temp
+.pnpm-store/

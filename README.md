@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TMT-CUP
+
+App para gestionar un torneo de fútbol: equipos, sorteo de grupos, partidos,
+tabla de posiciones y sanciones. Está construida con [Next.js](https://nextjs.org)
+(App Router) y [Supabase](https://supabase.com) como base de datos.
+
+## Stack
+
+- **Next.js 16** (App Router, route handlers en `app/api/**`)
+- **Supabase** (Postgres administrado, sin ORM)
+- **Tailwind CSS 4**
+- **pnpm** como gestor de paquetes
+
+## Estructura
+
+La estructura actual del repo es esta:
+
+```
+app/
+  api/            # route handlers del backend (teams, matches, draw, etc.)
+  layout.tsx      # layout raíz de la app
+  page.tsx        # pantalla principal actual
+lib/
+  supabase.ts     # cliente de Supabase en servidor (service_role key)
+supabase/
+  migrations/     # esquema SQL y funciones RPC
+  README.md       # guía para levantar la base online
+public/           # assets estáticos
+```
+
+### Base de datos
+
+- `20260703000000_create_tables.sql` crea enums, tablas, índices y RLS.
+- `20260703000001_create_functions.sql` agrega las funciones RPC usadas por
+  operaciones atómicas.
+
+## Requisitos previos
+
+- Node.js 20+ (o una versión compatible con Next.js 16)
+- `pnpm`
+- Un proyecto activo de Supabase
 
 ## Getting Started
 
-First, run the development server:
+Instala las dependencias:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Configura las variables de entorno. Ver [supabase/README.md](supabase/README.md)
+para el paso a paso completo:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# .env.local
+SUPABASE_URL=https://<tu-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Aplica las migraciones de base de datos y luego levanta el servidor:
 
-## Learn More
+```bash
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Comando        | Descripción                       |
+| -------------- | ---------------------------------- |
+| `pnpm dev`     | Servidor de desarrollo             |
+| `pnpm build`   | Build de producción                |
+| `pnpm start`   | Sirve el build de producción       |
+| `pnpm lint`    | Linter (ESLint)                    |
 
-## Deploy on Vercel
+## Flujo de la app
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- El frontend vive en `app/page.tsx` y el layout global en `app/layout.tsx`.
+- La lógica del backend está en `app/api/**`.
+- Todas las operaciones contra Supabase usan `lib/supabase.ts` desde servidor.
+- La base online se define en `supabase/migrations/**`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API
+
+| Ruta                    | Métodos      | Descripción                              |
+| ------------------------ | ------------ | ----------------------------------------- |
+| `/api/teams`             | GET, POST    | Listar / crear equipos                    |
+| `/api/matches`           | GET, POST    | Listar / programar partidos               |
+| `/api/matches/[id]`      | PATCH        | Registrar el resultado de un partido      |
+| `/api/draw`              | POST         | Sorteo de grupos (equipos masculinos)     |
+| `/api/standings`         | GET          | Tabla de posiciones por grupo             |
+| `/api/sanctions`         | GET, POST    | Historial / aplicar sanciones             |
+
+## Base de datos
+
+Toda la lógica de acceso a datos vive en `app/api/**` usando el cliente de
+`lib/supabase.ts`. Ver [supabase/README.md](supabase/README.md) para el orden
+de las migraciones, la configuración online y el motivo de las funciones RPC.
