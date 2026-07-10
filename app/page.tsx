@@ -89,6 +89,10 @@ type ApiMatch = {
   team_b_id: number;
   score_a: number | null;
   score_b: number | null;
+  waiting_started_at: string | null;
+  team_a_present_at: string | null;
+  team_b_present_at: string | null;
+  kickoff_at: string | null;
   published_at: string | null;
   walkover: string | null;
   teamA: { id: number; name: string; players?: Player[] } | null;
@@ -389,13 +393,25 @@ export default function Home() {
       }
       setEventsByTeam(grouped);
 
-      if (match.status === "upcoming") {
+      const elapsedSince = (iso: string | null) =>
+        iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 1000) : 0;
+
+      if (detail.status === "PROGRAMADO") {
         await api(`/api/matches/${match.id}/lifecycle`, {
           method: "POST",
           body: JSON.stringify({ action: "start_waiting" }),
         });
         setView("waiting");
-      } else if (match.status === "live") {
+      } else if (detail.status === "EN_ESPERA") {
+        // Retoma la espera donde iba: reloj y presencias desde el servidor
+        setWaitingSeconds(Math.max(0, waitingDuration - elapsedSince(detail.waiting_started_at)));
+        setPresence({
+          home: Boolean(detail.team_a_present_at),
+          away: Boolean(detail.team_b_present_at),
+        });
+        setView("waiting");
+      } else if (detail.status === "EN_JUEGO") {
+        setLiveSeconds(Math.max(0, matchDuration - elapsedSince(detail.kickoff_at)));
         setPresence({ home: true, away: true });
         setView("live");
       } else {
