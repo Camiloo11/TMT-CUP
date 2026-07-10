@@ -9,10 +9,18 @@ type MatchStatus = "upcoming" | "live" | "finished";
 type Filter = "upcoming" | "live" | "finished";
 type TeamSide = "home" | "away";
 type EventKind = "goal" | "yellow" | "red";
-type SupervisorName = "Ana Beltrán" | "Mario Silva" | "Sofía Ramos" | "Diego Costa";
+type Assignment = {
+  id: number;
+  day: string;
+  field_number: number;
+  supervisor_name: string;
+  referee_name: string;
+};
 
 type MatchCard = {
-  id: string;
+  id: number;
+  teamAId: number;
+  teamBId: number;
   time: string;
   phase: string;
   homeTeam: string;
@@ -22,13 +30,14 @@ type MatchCard = {
 };
 
 type Player = {
-  id: string;
+  id: number;
   name: string;
+  suspended?: boolean;
 };
 
 type LiveEvent = {
-  id: string;
-  playerId: string;
+  id: number;
+  playerId: number;
   team: TeamSide;
   kind: EventKind;
   minute: number;
@@ -50,81 +59,59 @@ type Report = {
   walkover?: string;
 };
 
-const supervisors: SupervisorName[] = ["Ana Beltrán", "Mario Silva", "Sofía Ramos", "Diego Costa"];
+// ── Conexión al backend ─────────────────────────────────────
+async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error((data as { error?: string } | null)?.error ?? `Error ${res.status}`);
+  }
+  return data as T;
+}
 
-const matches: MatchCard[] = [
-  {
-    id: "m1",
-    time: "08:00",
-    phase: "Grupo A - Jornada 1",
-    homeTeam: "Raptors FC",
-    awayTeam: "North Stars",
-    status: "finished",
-  },
-  {
-    id: "m2",
-    time: "08:32",
-    phase: "Grupo A - Jornada 1",
-    homeTeam: "Blue Tigers",
-    awayTeam: "Iron United",
-    status: "upcoming",
-    readyNow: true,
-  },
-  {
-    id: "m3",
-    time: "09:00",
-    phase: "Grupo B - Jornada 1",
-    homeTeam: "Red Lions",
-    awayTeam: "Storm Club",
-    status: "live",
-  },
-  {
-    id: "m4",
-    time: "09:26",
-    phase: "Grupo B - Jornada 1",
-    homeTeam: "Atlas FC",
-    awayTeam: "Phoenix Junior",
-    status: "upcoming",
-  },
-  {
-    id: "m5",
-    time: "09:52",
-    phase: "Ruta de Playoff - Ronda 1",
-    homeTeam: "Green Valley",
-    awayTeam: "Orchid Athletic",
-    status: "upcoming",
-  },
-  {
-    id: "m6",
-    time: "10:18",
-    phase: "Ruta de Playoff - Ronda 1",
-    homeTeam: "Galaxy FC",
-    awayTeam: "Vortex United",
-    status: "upcoming",
-  },
-];
+const phaseLabels: Record<string, string> = {
+  GRUPOS: "Fase de Grupos",
+  CUARTOS: "Cuartos de Final",
+  SEMIFINAL: "Semifinal",
+  FINAL: "Final",
+};
 
-const homePlayers: Player[] = [
-  { id: "h1", name: "Lucas Ferreira" },
-  { id: "h2", name: "Mateo Silva" },
-  { id: "h3", name: "Andrés Ramos" },
-  { id: "h4", name: "Bruno Costa" },
-  { id: "h5", name: "Sergio Luna" },
-  { id: "h6", name: "Thiago Pérez" },
-  { id: "h7", name: "Diego Mora" },
-  { id: "h8", name: "Jonas Vidal" },
-];
+type ApiMatch = {
+  id: number;
+  phase: string;
+  status: string;
+  field_number: number;
+  scheduled_at: string;
+  team_a_id: number;
+  team_b_id: number;
+  score_a: number | null;
+  score_b: number | null;
+  published_at: string | null;
+  walkover: string | null;
+  teamA: { id: number; name: string; players?: Player[] } | null;
+  teamB: { id: number; name: string; players?: Player[] } | null;
+  events?: Array<{ id: number; type: string; minute: number | null; team_id: number; player_id: number | null }>;
+};
 
-const awayPlayers: Player[] = [
-  { id: "a1", name: "Carlos Mendes" },
-  { id: "a2", name: "Rafael Torres" },
-  { id: "a3", name: "Nicolás Fuentes" },
-  { id: "a4", name: "Marcos Vidal" },
-  { id: "a5", name: "Esteban Rojas" },
-  { id: "a6", name: "Pablo Herrera" },
-  { id: "a7", name: "Kevin Alves" },
-  { id: "a8", name: "Oliver Núñez" },
-];
+function toMatchCard(m: ApiMatch): MatchCard {
+  const scheduled = new Date(m.scheduled_at);
+  const status: MatchStatus =
+    m.status === "FINALIZADO" ? "finished" : m.status === "PROGRAMADO" ? "upcoming" : "live";
+  return {
+    id: m.id,
+    teamAId: m.team_a_id,
+    teamBId: m.team_b_id,
+    time: scheduled.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+    phase: phaseLabels[m.phase] ?? m.phase,
+    homeTeam: m.teamA?.name ?? "Equipo A",
+    awayTeam: m.teamB?.name ?? "Equipo B",
+    status,
+    readyNow: status === "upcoming" && scheduled.getTime() <= Date.now(),
+  };
+}
 
 const matchDuration = 26 * 60;
 const waitingDuration = 6 * 60;
@@ -146,11 +133,11 @@ function formatClock(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-function isPlayerSentOff(events: Record<string, LiveEvent[]>, playerId: string) {
+function isPlayerSentOff(events: Record<string, LiveEvent[]>, playerId: number) {
   return events[playerId]?.some((event) => event.kind === "red") ?? false;
 }
 
-function getLatestEvent(events: Record<string, LiveEvent[]>, playerId: string) {
+function getLatestEvent(events: Record<string, LiveEvent[]>, playerId: number) {
   const playerEvents = events[playerId] ?? [];
   return playerEvents[playerEvents.length - 1] ?? null;
 }
@@ -170,15 +157,17 @@ function buildReport(params: {
   events: Record<TeamSide, Record<string, LiveEvent[]>>;
   incidents: Incident[];
   walkover?: string;
+  homePlayers: Player[];
+  awayPlayers: Player[];
 }) {
   const goals = [
     ...Object.entries(params.events.home).flatMap(([playerId, playerEvents]) =>
       playerEvents
         .filter((event) => event.kind === "goal")
         .map(() => {
-          const player = homePlayers.find((entry) => entry.id === playerId);
+          const player = params.homePlayers.find((entry) => String(entry.id) === playerId);
           return {
-            label: player?.name ?? "Jugador local",
+            label: player?.name ?? "Gol de oficio (W)",
             team: params.match.homeTeam,
           };
         }),
@@ -187,9 +176,9 @@ function buildReport(params: {
       playerEvents
         .filter((event) => event.kind === "goal")
         .map(() => {
-          const player = awayPlayers.find((entry) => entry.id === playerId);
+          const player = params.awayPlayers.find((entry) => String(entry.id) === playerId);
           return {
-            label: player?.name ?? "Jugador visitante",
+            label: player?.name ?? "Gol de oficio (W)",
             team: params.match.awayTeam,
           };
         }),
@@ -201,7 +190,7 @@ function buildReport(params: {
       playerEvents
         .filter((event) => event.kind === "yellow" || event.kind === "red")
         .map((event) => {
-          const player = homePlayers.find((entry) => entry.id === playerId);
+          const player = params.homePlayers.find((entry) => String(entry.id) === playerId);
           return {
             label: `${player?.name ?? "Jugador local"} · ${event.kind === "yellow" ? "Amarilla" : "Roja"}`,
             team: params.match.homeTeam,
@@ -212,7 +201,7 @@ function buildReport(params: {
       playerEvents
         .filter((event) => event.kind === "yellow" || event.kind === "red")
         .map((event) => {
-          const player = awayPlayers.find((entry) => entry.id === playerId);
+          const player = params.awayPlayers.find((entry) => String(entry.id) === playerId);
           return {
             label: `${player?.name ?? "Jugador visitante"} · ${event.kind === "yellow" ? "Amarilla" : "Roja"}`,
             team: params.match.awayTeam,
@@ -234,10 +223,16 @@ function buildReport(params: {
 
 export default function Home() {
   const [view, setView] = useState<View>("config");
-  const [supervisor, setSupervisor] = useState<SupervisorName | "">("");
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [supervisor, setSupervisor] = useState<string>("");
+  const [matchList, setMatchList] = useState<MatchCard[]>([]);
+  const [agendaSummary, setAgendaSummary] = useState({ total: 0, played: 0 });
+  const [homePlayers, setHomePlayers] = useState<Player[]>([]);
+  const [awayPlayers, setAwayPlayers] = useState<Player[]>([]);
+  const [extraMin, setExtraMin] = useState(0);
   const [supervisorMenuOpen, setSupervisorMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>("upcoming");
-  const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[1]);
+  const [selectedMatch, setSelectedMatch] = useState<MatchCard | null>(null);
   const [waitingSeconds, setWaitingSeconds] = useState(waitingDuration);
   const [presence, setPresence] = useState(createEmptyPresence);
   const [liveSeconds, setLiveSeconds] = useState(matchDuration);
@@ -246,12 +241,12 @@ export default function Home() {
   const [eventsByTeam, setEventsByTeam] = useState(createEmptyEvents);
   const [openEventMenu, setOpenEventMenu] = useState<{
     team: TeamSide;
-    playerId: string;
+    playerId: number;
   } | null>(null);
   const [undoTarget, setUndoTarget] = useState<{
     team: TeamSide;
-    playerId: string;
-    eventId: string;
+    playerId: number;
+    eventId: number;
   } | null>(null);
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [incidentDraft, setIncidentDraft] = useState("");
@@ -262,6 +257,25 @@ export default function Home() {
   const [isExiting, setIsExiting] = useState(false);
 
   const score = countGoals(eventsByTeam);
+  const assignment = assignments.find((a) => a.supervisor_name === supervisor) ?? null;
+
+  useEffect(() => {
+    api<Assignment[]>("/api/agenda")
+      .then(setAssignments)
+      .catch((err) => console.error("No se pudieron cargar las asignaciones:", err));
+  }, []);
+
+  async function loadAgenda(fieldNumber: number) {
+    try {
+      const data = await api<{ summary: { total: number; played: number }; matches: ApiMatch[] }>(
+        `/api/agenda?field=${fieldNumber}`,
+      );
+      setMatchList(data.matches.map(toMatchCard));
+      setAgendaSummary(data.summary);
+    } catch (err) {
+      console.error("No se pudo cargar la agenda:", err);
+    }
+  }
 
   useEffect(() => {
     if (view !== "waiting" || waitingSeconds === 0) {
@@ -316,7 +330,7 @@ export default function Home() {
     }
   }, [view]);
 
-  const readyMatches = matches.filter((match) => match.status === activeFilter);
+  const readyMatches = matchList.filter((match) => match.status === activeFilter);
   const presenceCount = Number(presence.home) + Number(presence.away);
   const warningText =
     waitingSeconds > 240
@@ -334,13 +348,14 @@ export default function Home() {
           : "Equipos en cancha"
       : "Equipos en cancha";
 
-  function beginMatchLifecycle(match: MatchCard) {
+  async function beginMatchLifecycle(match: MatchCard) {
     setSelectedMatch(match);
     setWaitingSeconds(waitingDuration);
     setPresence(createEmptyPresence());
     setLiveSeconds(matchDuration);
     setPaused(false);
     setExtraTimeUnlocked(false);
+    setExtraMin(0);
     setEventsByTeam(createEmptyEvents());
     setOpenEventMenu(null);
     setUndoTarget(null);
@@ -349,114 +364,246 @@ export default function Home() {
     setIncidents([]);
     setReport(null);
     setLocked(false);
-    setView("waiting");
+
+    try {
+      // Trae plantillas y estado real del partido desde el backend
+      const detail = await api<ApiMatch>(`/api/matches/${match.id}`);
+      const teamAPlayers = detail.teamA?.players ?? [];
+      const teamBPlayers = detail.teamB?.players ?? [];
+      setHomePlayers(teamAPlayers);
+      setAwayPlayers(teamBPlayers);
+
+      // Reconstruye eventos ya registrados (resiste recargas de página)
+      const grouped = createEmptyEvents();
+      for (const e of detail.events ?? []) {
+        const side: TeamSide = e.team_id === detail.team_a_id ? "home" : "away";
+        const key = String(e.player_id ?? 0);
+        const live: LiveEvent = {
+          id: e.id,
+          playerId: e.player_id ?? 0,
+          team: side,
+          kind: e.type === "GOL" ? "goal" : e.type === "AMARILLA" ? "yellow" : "red",
+          minute: e.minute ?? 0,
+        };
+        grouped[side][key] = [...(grouped[side][key] ?? []), live];
+      }
+      setEventsByTeam(grouped);
+
+      if (match.status === "upcoming") {
+        await api(`/api/matches/${match.id}/lifecycle`, {
+          method: "POST",
+          body: JSON.stringify({ action: "start_waiting" }),
+        });
+        setView("waiting");
+      } else if (match.status === "live") {
+        setPresence({ home: true, away: true });
+        setView("live");
+      } else {
+        // Partido terminado: acta en solo lectura
+        setLocked(Boolean(detail.published_at));
+        setReport(
+          buildReport({
+            match,
+            score: { home: detail.score_a ?? 0, away: detail.score_b ?? 0 },
+            events: grouped,
+            incidents: [],
+            walkover: detail.walkover ? `Walkover (${detail.walkover})` : undefined,
+            homePlayers: teamAPlayers,
+            awayPlayers: teamBPlayers,
+          }),
+        );
+        setView("summary");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo abrir el partido");
+    }
   }
 
-  function selectSupervisor(name: SupervisorName) {
+  function selectSupervisor(name: string) {
     setSupervisor(name);
     setSupervisorMenuOpen(false);
   }
 
-  function togglePresence(team: TeamSide) {
-    setPresence((current) => ({ ...current, [team]: !current[team] }));
-  }
-
-  function registerEvent(team: TeamSide, playerId: string, kind: EventKind) {
-    const event: LiveEvent = {
-      id: `${playerId}-${kind}-${Date.now()}`,
-      playerId,
-      team,
-      kind,
-      minute: Math.max(1, 26 - Math.ceil(liveSeconds / 60)),
-    };
-
-    setEventsByTeam((current) => ({
-      ...current,
-      [team]: {
-        ...current[team],
-        [playerId]: [...(current[team][playerId] ?? []), event],
-      },
-    }));
-
-    setUndoTarget({ team, playerId, eventId: event.id });
-    setOpenEventMenu(null);
-  }
-
-  function undoEvent() {
-    if (!undoTarget) {
-      return;
+  async function togglePresence(team: TeamSide) {
+    if (!selectedMatch || presence[team]) {
+      return; // la llegada no se "des-marca"
     }
+    try {
+      await api(`/api/matches/${selectedMatch.id}/lifecycle`, {
+        method: "POST",
+        body: JSON.stringify({ action: "team_present", team: team === "home" ? "A" : "B" }),
+      });
+      setPresence((current) => ({ ...current, [team]: true }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo marcar la presencia");
+    }
+  }
 
-    setEventsByTeam((current) => {
-      const playerEvents = current[undoTarget.team][undoTarget.playerId] ?? [];
-      return {
+  async function registerEvent(team: TeamSide, playerId: number, kind: EventKind) {
+    if (!selectedMatch) return;
+    const teamId = team === "home" ? selectedMatch.teamAId : selectedMatch.teamBId;
+    const minute = Math.max(1, 26 - Math.ceil(liveSeconds / 60));
+    try {
+      const saved = await api<{ id: number }>(`/api/matches/${selectedMatch.id}/events`, {
+        method: "POST",
+        body: JSON.stringify({
+          type: kind === "goal" ? "GOL" : kind === "yellow" ? "AMARILLA" : "ROJA",
+          teamId,
+          playerId,
+          minute,
+        }),
+      });
+
+      const event: LiveEvent = { id: saved.id, playerId, team, kind, minute };
+      const key = String(playerId);
+      setEventsByTeam((current) => ({
         ...current,
-        [undoTarget.team]: {
-          ...current[undoTarget.team],
-          [undoTarget.playerId]: playerEvents.filter((event) => event.id !== undoTarget.eventId),
+        [team]: {
+          ...current[team],
+          [key]: [...(current[team][key] ?? []), event],
         },
-      };
-    });
-
-    setUndoTarget(null);
+      }));
+      setUndoTarget({ team, playerId, eventId: saved.id });
+      setOpenEventMenu(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo registrar el evento");
+    }
   }
 
-  function submitIncident() {
-    if (!incidentDraft.trim()) {
+  async function undoEvent() {
+    const target = undoTarget;
+    if (!target || !selectedMatch) return;
+    try {
+      await api(`/api/matches/${selectedMatch.id}/events/${target.eventId}`, {
+        method: "DELETE",
+      });
+      const key = String(target.playerId);
+      setEventsByTeam((current) => {
+        const playerEvents = current[target.team][key] ?? [];
+        return {
+          ...current,
+          [target.team]: {
+            ...current[target.team],
+            [key]: playerEvents.filter((event) => event.id !== target.eventId),
+          },
+        };
+      });
+      setUndoTarget(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo deshacer el evento");
+    }
+  }
+
+  async function submitIncident() {
+    if (!incidentDraft.trim() || !selectedMatch) {
+      return;
+    }
+    try {
+      await api(`/api/matches/${selectedMatch.id}/incidents`, {
+        method: "POST",
+        body: JSON.stringify({ note: incidentDraft.trim() }),
+      });
+      setIncidents((current) => [
+        ...current,
+        {
+          id: `incident-${Date.now()}`,
+          label: "Nota rápida del incidente",
+          note: incidentDraft.trim(),
+        },
+      ]);
+      setIncidentDraft("");
+      setIncidentOpen(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo guardar el incidente");
+    }
+  }
+
+  async function advanceWaiting() {
+    if (!selectedMatch) return;
+
+    if (waitingSeconds === 0 && presenceCount < 2) {
+      try {
+        await api(`/api/matches/${selectedMatch.id}/lifecycle`, {
+          method: "POST",
+          body: JSON.stringify({ action: "declare_walkover" }),
+        });
+        const walkover = presenceCount === 0 ? "Doble walkover (sin puntos)" : "Walkover 3-0";
+        setReport(
+          buildReport({
+            match: selectedMatch,
+            score,
+            events: eventsByTeam,
+            incidents,
+            walkover,
+            homePlayers,
+            awayPlayers,
+          }),
+        );
+        setView("summary");
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "No se pudo declarar el walkover");
+      }
       return;
     }
 
-    setIncidents((current) => [
-      ...current,
-      {
-        id: `incident-${Date.now()}`,
-        label: "Nota rápida del incidente",
-        note: incidentDraft.trim(),
-      },
-    ]);
-    setIncidentDraft("");
-    setIncidentOpen(false);
+    if (presenceCount < 2) {
+      alert("Marca la presencia de ambos equipos antes de empezar");
+      return;
+    }
+
+    try {
+      await api(`/api/matches/${selectedMatch.id}/lifecycle`, {
+        method: "POST",
+        body: JSON.stringify({ action: "kickoff" }),
+      });
+      setView("live");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo iniciar el partido");
+    }
   }
 
-  function advanceWaiting() {
-    if (waitingSeconds === 0 && presenceCount < 2) {
-      const walkover = presenceCount === 0 ? "Double walkover" : "Full walkover";
+  function addExtraTime() {
+    setExtraTimeUnlocked(true);
+    setExtraMin((current) => current + 2);
+    setLiveSeconds((current) => current + 120);
+    setPaused(false);
+  }
+
+  async function finishMatch() {
+    if (!selectedMatch) return;
+    try {
+      await api(`/api/matches/${selectedMatch.id}/lifecycle`, {
+        method: "POST",
+        body: JSON.stringify({ action: "finish", extraTimeMin: extraMin }),
+      });
       setReport(
         buildReport({
           match: selectedMatch,
           score,
           events: eventsByTeam,
           incidents,
-          walkover,
+          homePlayers,
+          awayPlayers,
         }),
       );
       setView("summary");
-      return;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo finalizar el partido");
     }
-
-    setView("live");
   }
 
-  function addExtraTime() {
-    setExtraTimeUnlocked(true);
-    setLiveSeconds((current) => current + 120);
-    setPaused(false);
-  }
-
-  function finishMatch() {
-    setReport(
-      buildReport({
-        match: selectedMatch,
-        score,
-        events: eventsByTeam,
-        incidents,
-      }),
-    );
-    setView("summary");
-  }
-
-  function saveAndLock() {
-    setLocked(true);
+  async function saveAndLock() {
+    if (!selectedMatch) return;
+    try {
+      await api(`/api/matches/${selectedMatch.id}/lifecycle`, {
+        method: "POST",
+        body: JSON.stringify({ action: "publish" }),
+      });
+      setLocked(true);
+      if (assignment) void loadAgenda(assignment.field_number);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo publicar el acta");
+    }
   }
 
   return (
@@ -515,7 +662,8 @@ export default function Home() {
                     role="listbox"
                     className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-56 overflow-y-auto rounded-[1.25rem] border border-[#c9d1f0] bg-white p-2 shadow-[0_20px_40px_rgba(35,60,151,0.12)] animate-select-dropdown"
                   >
-                    {supervisors.map((name) => {
+                    {assignments.map((entry) => {
+                      const name = entry.supervisor_name;
                       const selected = supervisor === name;
 
                       return (
@@ -541,11 +689,11 @@ export default function Home() {
                 <div className="grid gap-3 rounded-[1.5rem] border border-[#e2e8f5] bg-[#f9fbff]/60 p-4 text-sm sm:grid-cols-2 animate-fade-in">
                   <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
                     <p className="text-xs font-medium text-slate-400">Árbitro central</p>
-                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">Carlos Molina</p>
+                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment?.referee_name ?? "Por asignar"}</p>
                   </div>
                   <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
                     <p className="text-xs font-medium text-slate-400">Cancha asignada</p>
-                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">Cancha 1</p>
+                    <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment ? `Cancha ${assignment.field_number}` : "Por asignar"}</p>
                   </div>
                 </div>
               )}
@@ -558,6 +706,7 @@ export default function Home() {
                 disabled={!supervisor || isExiting}
                 onClick={() => {
                   setIsExiting(true);
+                  if (assignment) void loadAgenda(assignment.field_number);
                   // Cambiamos de vista inmediatamente para que empiece a renderizarse el Dashboard y su animación de entrada
                   setView("dashboard");
                   setTimeout(() => {
@@ -583,9 +732,9 @@ export default function Home() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.28em] text-white/75">Cancha asignada</p>
-                  <h2 className="text-2xl font-semibold">CANCHA 1</h2>
+                  <h2 className="text-2xl font-semibold">CANCHA {assignment?.field_number ?? "—"}</h2>
                 </div>
-                <div className="rounded-full bg-white/12 px-3 py-2 text-sm font-semibold backdrop-blur-md">Partidos: 2/6</div>
+                <div className="rounded-full bg-white/12 px-3 py-2 text-sm font-semibold backdrop-blur-md">Partidos: {agendaSummary.played}/{agendaSummary.total}</div>
               </div>
               <p className="mt-2 text-sm text-white/85">El supervisor {supervisor} está habilitado para la jornada.</p>
             </header>
@@ -611,7 +760,7 @@ export default function Home() {
                 <button
                   key={match.id}
                   type="button"
-                  onClick={() => beginMatchLifecycle(match)}
+                  onClick={() => void beginMatchLifecycle(match)}
                   className={`w-full rounded-[1.6rem] border bg-white p-4 text-left shadow-[0_10px_24px_rgba(16,32,76,0.06)] transition active:scale-[0.995] ${match.readyNow ? "border-[color:var(--danger)] border-dashed animate-pulse" : "border-[color:var(--border)]"
                     }`}
                 >
@@ -649,7 +798,7 @@ export default function Home() {
           </section>
         )}
 
-        {view === "waiting" && (
+        {view === "waiting" && selectedMatch && (
           <section className="flex flex-1 flex-col gap-4">
             <header className="rounded-[1.75rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_16px_40px_rgba(35,60,151,0.18)]">
               <div className="flex items-center justify-between gap-3 text-sm uppercase tracking-[0.26em] text-white/70">
@@ -674,7 +823,7 @@ export default function Home() {
                   <button
                     key={team.key}
                     type="button"
-                    onClick={() => togglePresence(team.key)}
+                    onClick={() => void togglePresence(team.key)}
                     className={`flex aspect-square flex-col items-center justify-center rounded-full border-4 p-4 text-center transition active:scale-[0.98] ${isPresent
                       ? "border-emerald-500 bg-emerald-500/12 text-emerald-800"
                       : "border-[color:var(--primary)] bg-white text-[color:var(--primary)]"
@@ -694,7 +843,7 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={advanceWaiting}
+              onClick={() => void advanceWaiting()}
               className={`mt-auto h-16 rounded-full px-6 text-base font-semibold text-white shadow-[0_14px_32px_rgba(35,60,151,0.22)] transition active:scale-[0.99] ${waitingSeconds === 0 && presenceCount < 2 ? "bg-[color:var(--danger)]" : "bg-[color:var(--primary)]"
                 }`}
             >
@@ -703,12 +852,12 @@ export default function Home() {
           </section>
         )}
 
-        {view === "live" && (
+        {view === "live" && selectedMatch && (
           <section className="flex flex-1 flex-col gap-4 pb-16">
             <header className="rounded-[1.75rem] bg-[color:var(--primary)] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
               <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.26em] text-white/70">
                 <span>{selectedMatch.phase}</span>
-                <span>CANCHA 1</span>
+                <span>CANCHA {assignment?.field_number ?? "—"}</span>
               </div>
               <div className="mt-4 flex items-end justify-between gap-4">
                 <div>
@@ -776,7 +925,7 @@ export default function Home() {
                 )}
                 <button
                   type="button"
-                  onClick={finishMatch}
+                  onClick={() => void finishMatch()}
                   className="h-14 flex-1 rounded-full bg-[color:var(--primary)] px-4 text-sm font-semibold text-white"
                 >
                   Finalizar y publicar partido
@@ -834,7 +983,7 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={saveAndLock}
+              onClick={() => void saveAndLock()}
               disabled={locked}
               className="mt-auto h-16 rounded-full bg-[color:var(--primary)] px-6 text-base font-semibold text-white disabled:opacity-70"
             >
@@ -862,7 +1011,7 @@ export default function Home() {
               placeholder="Delay, medical note, field issue..."
               className="mt-4 h-32 w-full rounded-[1.2rem] border border-[color:var(--border)] bg-white p-4 text-sm outline-none"
             />
-            <button type="button" onClick={submitIncident} className="mt-3 h-14 w-full rounded-full bg-[color:var(--danger)] px-4 text-sm font-semibold text-white">
+            <button type="button" onClick={() => void submitIncident()} className="mt-3 h-14 w-full rounded-full bg-[color:var(--danger)] px-4 text-sm font-semibold text-white">
               Guardar nota del incidente
             </button>
           </div>
@@ -871,7 +1020,7 @@ export default function Home() {
 
       {undoTarget && view === "live" && (
         <div className="fixed bottom-24 left-1/2 z-30 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-full border border-[color:var(--border)] bg-white/95 px-4 py-3 text-center shadow-[0_16px_40px_rgba(15,23,42,0.15)] backdrop-blur-md">
-          <button type="button" onClick={undoEvent} className="text-sm font-semibold text-[color:var(--danger)]">
+          <button type="button" onClick={() => void undoEvent()} className="text-sm font-semibold text-[color:var(--danger)]">
             Deshacer último evento
           </button>
         </div>
@@ -895,11 +1044,11 @@ function RosterPanel({
   side: TeamSide;
   players: Player[];
   events: Record<string, LiveEvent[]>;
-  openEventMenu: { team: TeamSide; playerId: string } | null;
-  onOpenEventMenu: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: string } | null>>;
-  onRegisterEvent: (team: TeamSide, playerId: string, kind: EventKind) => void;
-  onRequestUndo: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: string; eventId: string } | null>>;
-  undoTarget: { team: TeamSide; playerId: string; eventId: string } | null;
+  openEventMenu: { team: TeamSide; playerId: number } | null;
+  onOpenEventMenu: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: number } | null>>;
+  onRegisterEvent: (team: TeamSide, playerId: number, kind: EventKind) => void;
+  onRequestUndo: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: number; eventId: number } | null>>;
+  undoTarget: { team: TeamSide; playerId: number; eventId: number } | null;
 }) {
   return (
     <div className="rounded-[1.6rem] border border-[color:var(--border)] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,76,0.06)]">
@@ -913,7 +1062,7 @@ function RosterPanel({
 
       <div className="mt-3 space-y-2">
         {players.map((player) => {
-          const sentOff = isPlayerSentOff(events, player.id);
+          const sentOff = Boolean(player.suspended) || isPlayerSentOff(events, player.id);
           const latestEvent = getLatestEvent(events, player.id);
           const hasUndoTarget = undoTarget?.playerId === player.id && undoTarget?.team === side;
 
