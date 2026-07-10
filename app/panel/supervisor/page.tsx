@@ -427,12 +427,12 @@ export default function SupervisorPage() {
       <Header />
 
       {/* Contenido Principal de la Mesa de Control */}
-      <main className="flex-1 px-4 py-6 pb-24 text-[15px] text-[color:var(--foreground)] sm:px-6">
-        <div className="mx-auto flex min-h-[calc(100vh-12rem)] w-full max-w-md flex-col justify-center gap-6 sm:max-w-lg">
+      <main className="flex-1 px-4 pb-16 text-[15px] text-[color:var(--foreground)] sm:px-6">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-6 sm:max-w-lg">
           
           {/* VISTA DE CONFIGURACIÓN */}
           {(view === "config" || (view === "dashboard" && isExiting)) && (
-            <section className={`space-y-6 w-full min-h-[65vh] flex flex-col justify-center ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
+            <section className={`font-poppins space-y-6 w-full min-h-[65vh] flex flex-col justify-center ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
               <div className="space-y-6">
                 <div className="flex justify-center pt-2">
                   <Image
@@ -529,7 +529,7 @@ export default function SupervisorPage() {
                         setIsExiting(false);
                       }, 350);
                     }}
-                    className="flex h-15 w-full max-w-[260px] items-center justify-center rounded-[1.25rem] bg-[color:var(--primary)] px-6 text-lg font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none"
+                    className="inline-flex h-14 w-fit items-center justify-center rounded-[1.25rem] bg-[color:var(--primary)] px-8 text-xl font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none"
                   >
                     Ingresar al panel
                   </button>

@@ -1,33 +1,211 @@
 "use client";
 
+import { useState } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { TablaGrupo } from "./components/TablaGrupo";
+import { TarjetaPartido } from "./components/TarjetaPartido";
+import { FaseEliminatoria } from "./components/FaseEliminatoria";
 
 export default function PublicLivePage() {
+  // Estado compartido para controlar la navegación síncrona
+  const [activeTab, setActiveTab] = useState("partidos");
+
   return (
-    <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
-      {/* Header Reutilizable */}
-      <Header />
+    <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
+      {/* Header Reutilizable Sincronizado */}
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Contenido Principal de la Congregación */}
-      <main className="flex-1 px-4 py-8 max-w-4xl mx-auto w-full space-y-6 flex flex-col justify-center">
-        <div className="text-center space-y-2">
-          <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider animate-pulse">
-            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-            En Vivo ⚽
-          </span>
-          <h1 className="text-3xl font-bold text-[color:var(--primary)] tracking-tight">
-            Torneo Relámpago tMt Cup
-          </h1>
-          <p className="text-slate-500 text-sm max-w-md mx-auto">
-            Sigue los resultados, partidos y tablas de posiciones de nuestra iglesia en tiempo real.
-          </p>
-        </div>
+      {/* Contenido Principal */}
+      <main className="flex-1 px-4 py-6 max-w-md mx-auto w-full space-y-5 flex flex-col font-poppins">
 
-        {/* Bloque Contenedor Base */}
-        <div className="rounded-[1.6rem] border border-[color:var(--border)] bg-white p-8 shadow-sm text-center text-slate-400 font-medium">
-          Selecciona una opción del menú superior para explorar el estado del torneo.
-        </div>
+        {/* VISTA 1: GRUPOS */}
+        {activeTab === "grupos" && (
+          <div className="space-y-4">
+            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
+                Tabla de posiciones
+              </h2>
+            </div>
+
+            {/* Grupo A */}
+            <TablaGrupo 
+              nombreGrupo="Grupo A" 
+              equipos={[
+                { nombre: "Equipo Alpha", pj: 3, pg: 3, pe: 0, pp: 0, gf: 8, gc: 3, gd: 5, amarillas: 2, rojas: 0, pts: 9 },
+                { nombre: "Equipo Omega", pj: 3, pg: 2, pe: 0, pp: 1, gf: 5, gc: 3, gd: 2, amarillas: 4, rojas: 1, pts: 6 },
+                { nombre: "Equipo Éxodo", pj: 3, pg: 1, pe: 1, pp: 1, gf: 4, gc: 5, gd: -1, amarillas: 1, rojas: 0, pts: 4 },
+                { nombre: "Equipo Génesis", pj: 3, pg: 0, pe: 0, pp: 3, gf: 1, gc: 7, gd: -6, amarillas: 5, rojas: 2, pts: 0 },
+              ]}
+            />
+
+            {/* Grupo B */}
+            <TablaGrupo 
+              nombreGrupo="Grupo B" 
+              equipos={[
+                { nombre: "Equipo Beta", pj: 2, pg: 1, pe: 1, pp: 0, gf: 4, gc: 2, gd: 2, amarillas: 1, rojas: 0, pts: 4 },
+                { nombre: "Equipo Delta", pj: 2, pg: 1, pe: 0, pp: 1, gf: 3, gc: 3, gd: 0, amarillas: 3, rojas: 0, pts: 3 },
+                { nombre: "Equipo Gamma", pj: 2, pg: 0, pe: 2, pp: 0, gf: 2, gc: 2, gd: 0, amarillas: 2, rojas: 1, pts: 2 },
+                { nombre: "Equipo Zeta", pj: 2, pg: 0, pe: 1, pp: 1, gf: 1, gc: 3, gd: -2, amarillas: 0, rojas: 0, pts: 1 },
+              ]}
+            />
+          </div>
+        )}
+
+        {/* VISTA 2: PARTIDOS */}
+        {activeTab === "partidos" && (
+          <div className="space-y-4">
+            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
+                Partidos de la fecha
+              </h2>
+            </div>
+
+            {/* 1. Partido En Vivo */}
+            <TarjetaPartido 
+              liga="Torneo Clausura"
+              cancha="Cancha 1"
+              estado="VIVO"
+              minuto="72'"
+              equipoLocal="Equipo Alpha"
+              golesLocal={2}
+              equipoVisita="Equipo Omega"
+              golesVisita={1}
+              resumen={[
+                { minuto: "12'", texto: "Mateo S.", tipo: "gol", lado: "local" },
+                { minuto: "18'", texto: "Juan D.", tipo: "gol", lado: "visitante" },
+                { minuto: "24'", texto: "Lucas G.", tipo: "gol", lado: "local" },
+                { minuto: "35'", texto: "Andrés M.", tipo: "amarilla", lado: "visitante" },
+              ]}
+            />
+
+            {/* 2. Partido Finalizado */}
+            <TarjetaPartido 
+              liga="Torneo Clausura"
+              cancha="Cancha 2"
+              estado="FINALIZADO"
+              equipoLocal="Equipo Éxodo"
+              golesLocal={0}
+              equipoVisita="Equipo Génesis"
+              golesVisita={2}
+              resumen={[
+                { minuto: "40'", texto: "Carlos R.", tipo: "gol", lado: "visitante" },
+                { minuto: "44'", texto: "Luis P.", tipo: "roja", lado: "local" },
+              ]}
+            />
+
+            {/* 3. Partido Próximo */}
+            <TarjetaPartido 
+              liga="Torneo Clausura"
+              cancha="Estadio Principal"
+              estado="PROXIMO"
+              fechaHora="Sáb 16:00"
+              equipoLocal="Equipo Beta"
+              equipoVisita="Equipo Delta"
+            />
+          </div>
+        )}
+
+        {/* VISTA 3: FASE FINAL */}
+        {activeTab === "fixture" && (
+          <div className="space-y-4 flex-1 flex flex-col">
+            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
+                Fase eliminatoria
+              </h2>
+            </div>
+            
+            {/* Contenedor del Bracket en Poppins */}
+            <div className="w-full bg-white border border-[#10204c]/5 rounded-3xl p-4 shadow-[0_4px_20px_rgba(16,32,76,0.02)] flex-1 flex flex-col justify-center font-poppins">
+              
+              {/* Encabezados de las Rondas */}
+              <div className="grid grid-cols-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#10204c]/40 border-b border-gray-50 pb-2 mb-4 font-poppins">
+                <div>Semifinales</div>
+                <div>Gran Final</div>
+              </div>
+
+              {/* El Árbol Gráfico */}
+              <div className="grid grid-cols-2 gap-x-3 items-center relative flex-1 py-4 font-poppins">
+                
+                {/* COLUMNA 1: SEMIFINALES */}
+                <div className="space-y-8 relative z-10 flex flex-col justify-around h-full">
+                  {/* Semifinal 1 */}
+                  <div className="relative group">
+                    <div className="absolute -right-3 top-1/2 w-3.5 h-[1px] bg-[#10204c]/10" />
+                    <div className="absolute -right-3 top-1/2 h-[54px] w-[1px] bg-[#10204c]/10" />
+                    
+                    <div className="bg-[#10204c]/[0.03] border border-[#10204c]/10 rounded-xl overflow-hidden shadow-sm">
+                      <div className="text-[9px] font-semibold text-[#10204c]/40 px-2.5 py-1 bg-[#10204c]/[0.02] border-b border-[#10204c]/5 flex justify-between">
+                        <span>Sáb, 18/7</span>
+                        <span className="font-bold text-emerald-600">Fin</span>
+                      </div>
+                      <div className="p-2 space-y-1.5 text-xs font-bold text-[#10204c]/90">
+                        <div className="flex justify-between items-center">
+                          <span className="truncate">Equipo Alpha</span>
+                          <span className="text-[#233c97] font-black">3</span>
+                        </div>
+                        <div className="flex justify-between items-center font-medium text-[#10204c]/40 border-t border-[#10204c]/5 pt-1">
+                          <span className="truncate">Equipo Beta</span>
+                          <span>1</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Semifinal 2 */}
+                  <div className="relative group">
+                    <div className="absolute -right-3 top-1/2 w-3.5 h-[1px] bg-[#10204c]/10" />
+                    <div className="absolute -right-3 top-1/2 bottom-1/2 h-[54px] -translate-y-full w-[1px] bg-[#10204c]/10" />
+
+                    <div className="bg-[#10204c]/[0.03] border border-[#10204c]/10 rounded-xl overflow-hidden shadow-sm">
+                      <div className="text-[9px] font-semibold text-[#10204c]/40 px-2.5 py-1 bg-[#10204c]/[0.02] border-b border-[#10204c]/5 flex justify-between">
+                        <span>Sáb, 19/3</span>
+                        <span className="font-bold text-emerald-600">Fin</span>
+                      </div>
+                      <div className="p-2 space-y-1.5 text-xs font-medium text-[#10204c]/40">
+                        <div className="flex justify-between items-center">
+                          <span className="truncate">Equipo Éxodo</span>
+                          <span>2 <span className="text-[10px] text-[#10204c]/30">(3)</span></span>
+                        </div>
+                        <div className="flex justify-between items-center font-bold text-[#10204c]/90 border-t border-[#10204c]/5 pt-1">
+                          <span className="truncate">Equipo Omega</span>
+                          <span className="text-[#233c97] font-black">2 <span className="text-[10px] text-[#233c97]/60">(4)</span></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUMNA 2: GRAN FINAL */}
+                <div className="relative z-10 flex flex-col justify-center h-full pl-0.5">
+                  <div className="absolute -left-[11px] top-1/2 w-2.5 h-[1px] bg-[#10204c]/10" />
+
+                  <div className="bg-gradient-to-br from-amber-500/[0.02] to-amber-500/[0.06] border-2 border-[#f7c600]/30 rounded-2xl overflow-hidden shadow-md relative">
+                    <div className="text-[9px] font-bold text-amber-600 px-2.5 py-1 bg-[#f7c600]/10 border-b border-[#f7c600]/10 flex justify-between items-center">
+                      <span>Próximamente</span>
+                      <span className="bg-[#f7c600] text-[#10204c] px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">Hoy</span>
+                    </div>
+                    <div className="p-3.5 space-y-2 text-xs font-extrabold text-[#10204c]">
+                      <div className="flex justify-between items-center gap-1">
+                        <span className="truncate flex items-center gap-1">🏆 Equipo Alpha</span>
+                        <span className="text-gray-300 font-normal">—</span>
+                      </div>
+                      <div className="flex justify-between items-center gap-1 border-t border-gray-100 pt-2">
+                        <span className="truncate flex items-center gap-1">🏆 Equipo Omega</span>
+                        <span className="text-gray-300 font-normal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Footer Reutilizable */}

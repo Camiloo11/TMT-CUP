@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Modak, Poppins } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const modak = Modak({
-  variable: "--font-modak",
-  subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -30,8 +24,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${modak.variable} h-full antialiased`}
+      className={`${poppins.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Modak&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

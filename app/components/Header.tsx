@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 
-export default function LayoutPrueba() {
-  const [activeTab, setActiveTab] = useState("partidos");
+type HeaderProps = {
+  activeTab: string;
+  setActiveTab: (tabId: string) => void;
+};
+
+export default function LayoutPrueba({ activeTab, setActiveTab }: HeaderProps) {
 
   const tabs = [
     { id: "grupos", label: "Grupos" },
     { id: "partidos", label: "Partidos" },
-    { id: "sorteos", label: "Sorteos" }
+    { id: "fixture", label: "Fixtures" }
   ];
 
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);

@@ -10,6 +10,11 @@
   --accent: #f7c600;
   --danger: #f83636;
   --success: #1f9d55;
+  --font-modak: "Modak", cursive;
+}
+
+.font-secondary-modak {
+  font-family: var(--font-modak);
 }
 
 html {
