@@ -56,6 +56,15 @@ export async function GET() {
       };
 
       for (const m of matches) {
+        // Doble W: el partido cuenta como jugado pero sin goles ni puntos
+        if (m.walkover === "DOBLE") {
+          if (m.team_a_id === team.id || m.team_b_id === team.id) {
+            row.pj++;
+            row.pp++;
+          }
+          continue;
+        }
+
         // ¿Este equipo jugó este partido? ¿Como A o como B?
         let golesFavor: number | null = null;
         let golesContra: number | null = null;
