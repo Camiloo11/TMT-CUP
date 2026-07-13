@@ -3,13 +3,6 @@
 export default function FixtureEliminatoria() {
   return (
     <div className="space-y-4 flex-1 flex flex-col w-full">
-      {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
-          Fase eliminatoria
-        </h2>
-      </div>
-
       {/* Contenedor del Bracket en Poppins */}
       <div className="w-full bg-white border border-[#10204c]/5 rounded-3xl p-4 shadow-[0_4px_20px_rgba(16,32,76,0.02)] flex-1 flex flex-col justify-center font-poppins">
 

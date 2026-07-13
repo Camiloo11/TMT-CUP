@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
@@ -8,27 +8,68 @@ import { TarjetaPartido } from "./components/TarjetaPartido";
 import FixtureEliminatoria from "./components/FixtureEliminatoria";
 
 export default function PublicLivePage() {
-  // Estado compartido para controlar la navegación síncrona
-  const [activeTab, setActiveTab] = useState("partidos");
+  const [activeIndex, setActiveIndex] = useState(1); // Inicia en partidos
+  const carruselRef = useRef<HTMLDivElement>(null);
+  const estaProgramandoScroll = useRef(false);
+
+  const irAVista = (index: number) => {
+    if (!carruselRef.current) return;
+    estaProgramandoScroll.current = true;
+    
+    const anchoContenedor = carruselRef.current.clientWidth;
+    carruselRef.current.scrollTo({
+      left: index * anchoContenedor,
+      behavior: "smooth"
+    });
+
+    setActiveIndex(index);
+
+    setTimeout(() => {
+      estaProgramandoScroll.current = false;
+    }, 350);
+  };
+
+  const manejarScrollCarrusel = () => {
+    if (!carruselRef.current || estaProgramandoScroll.current) return;
+
+    const { scrollLeft, clientWidth } = carruselRef.current;
+    if (clientWidth === 0) return;
+
+    const nuevoIndice = Math.round(scrollLeft / clientWidth);
+    if (nuevoIndice !== activeIndex) {
+      setActiveIndex(nuevoIndice);
+    }
+  };
+
+  useEffect(() => {
+    const manejarResize = () => {
+      if (carruselRef.current) {
+        carruselRef.current.scrollLeft = activeIndex * carruselRef.current.clientWidth;
+      }
+    };
+    window.addEventListener("resize", manejarResize);
+    return () => window.removeEventListener("resize", manejarResize);
+  }, [activeIndex]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
-      {/* Header Reutilizable Sincronizado */}
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c] overflow-x-hidden">
+      <Header activeIndex={activeIndex} onTabChange={irAVista} />
 
-      {/* Contenido Principal */}
-      <main className="flex-1 px-4 py-6 max-w-md mx-auto w-full space-y-5 flex flex-col font-poppins">
-
-        {/* VISTA 1: GRUPOS */}
-        {activeTab === "grupos" && (
-          <div className="space-y-4">
-            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
+      <main className="flex-1 w-full max-w-md mx-auto flex flex-col relative overflow-hidden">
+        <div 
+          ref={carruselRef}
+          onScroll={manejarScrollCarrusel}
+          className="flex-1 flex overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth h-full"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          
+          {/* VISTA 0: GRUPOS */}
+          <div className="w-full flex-shrink-0 snap-start snap-always px-4 py-6 space-y-4">
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
                 Tabla de posiciones
               </h2>
             </div>
-
             <TablaGrupo 
               nombreGrupo="Grupo A" 
               equipos={[
@@ -39,19 +80,15 @@ export default function PublicLivePage() {
               ]}
             />
           </div>
-        )}
 
-        {/* VISTA 2: PARTIDOS */}
-        {activeTab === "partidos" && (
-          <div className="space-y-4">
-            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
+          {/* VISTA 1: PARTIDOS */}
+          <div className="w-full flex-shrink-0 snap-start snap-always px-4 py-6 space-y-4">
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
                 Partidos de la fecha
               </h2>
             </div>
 
-            {/* 1. Partido En Vivo */}
             <TarjetaPartido 
               cancha="Cancha 1"
               estado="VIVO"
@@ -68,7 +105,6 @@ export default function PublicLivePage() {
               ]}
             />
 
-            {/* 2. Partido Finalizado */}
             <TarjetaPartido 
               cancha="Cancha 2"
               estado="FINALIZADO"
@@ -82,7 +118,6 @@ export default function PublicLivePage() {
               ]}
             />
 
-            {/* 3. Partido Próximo */}
             <TarjetaPartido 
               cancha="Estadio Principal"
               estado="PROXIMO"
@@ -91,15 +126,21 @@ export default function PublicLivePage() {
               equipoVisita="Equipo Delta"
             />
           </div>
-        )}
 
-        {/* VISTA 3: FASE FINAL LLAMADA DESDE COMPONENTE */}
-        {activeTab === "fixture" && <FixtureEliminatoria />}
+          {/* VISTA 2: FASE FINAL */}
+          <div className="w-full flex-shrink-0 snap-start snap-always px-4 py-6 overflow-y-auto">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-black tracking-tight text-[#233c97] drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
+                Fase final
+              </h2>
+            </div>
+            <FixtureEliminatoria />
+          </div>
 
+        </div>
       </main>
 
-      {/* Footer Reutilizable */}
       <Footer />
     </div>
   );
-}
+} 
