@@ -260,9 +260,18 @@ export async function POST(
     }
     const extra = Number(body.extraTimeMin ?? 0) || 0;
     await recomputeScore(supabase, matchId);
+    // Penales (solo fase eliminatoria, si hubo empate)
+    const penaltyA = body.penaltyA !== undefined ? Number(body.penaltyA) : null;
+    const penaltyB = body.penaltyB !== undefined ? Number(body.penaltyB) : null;
     const { data, error } = await supabase
       .from("matches")
-      .update({ status: "FINALIZADO", finished_at: new Date().toISOString(), extra_time_min: extra })
+      .update({
+        status: "FINALIZADO",
+        finished_at: new Date().toISOString(),
+        extra_time_min: extra,
+        penalty_a: penaltyA,
+        penalty_b: penaltyB,
+      })
       .eq("id", matchId)
       .select()
       .single();
