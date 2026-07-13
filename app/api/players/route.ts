@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/players?team=3 → jugadores (de un equipo, o todos)
 export async function GET(request: Request) {
@@ -16,6 +17,9 @@ export async function GET(request: Request) {
 
 // POST /api/players → inscribir un jugador (el registro de la mañana)
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json();
 

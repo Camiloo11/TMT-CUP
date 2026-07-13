@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/teams → lista todos los equipos con sus jugadores
 export async function GET() {
@@ -16,6 +17,9 @@ export async function GET() {
 
 // POST /api/teams → crea un equipo nuevo
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json(); // lee el JSON que envía el cliente
 

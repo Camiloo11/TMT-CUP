@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/matches/[id]/incidents → reportes disciplinarios del partido
 export async function GET(
@@ -33,6 +34,9 @@ export async function POST(
   if (Number.isNaN(matchId)) {
     return Response.json({ error: "id inválido" }, { status: 400 });
   }
+
+  const auth = await requireRole(["SUPERVISOR"]);
+  if (isAuthError(auth)) return auth;
 
   const body = await request.json();
   if (!body.note || !String(body.note).trim()) {

@@ -1,7 +1,11 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // POST /api/draw → sorteo: baraja los equipos masculinos y los reparte en A-D
 export async function POST() {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const { data: teams, error: teamsError } = await supabase
     .from("teams")

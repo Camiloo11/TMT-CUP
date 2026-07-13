@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // POST /api/brackets/generate → crea los cruces de la fase eliminatoria.
 // Body: { stage: "CUARTOS" | "SEMIFINAL" | "FINAL", day?, startTime?, utcOffset?, fieldFinal? }
@@ -39,6 +40,9 @@ function winnerOf(m: MatchRow): number | null {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json().catch(() => ({}));
   const stage = body.stage as string;

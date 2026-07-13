@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/matches/[id] → detalle completo del partido: plantillas
 // (marcando expulsados), eventos, y supervisor/árbitro de la cancha hoy.
@@ -86,6 +87,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const { id } = await params;      // el número que viene en la URL
   const matchId = Number(id);

@@ -61,11 +61,16 @@ type Report = {
 };
 
 // ── Conexión al backend ─────────────────────────────────────
-async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+async function api<T = unknown>(path: string, options?: RequestInit, _retried = false): Promise<T> {
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
+  // Token vencido: renueva la sesión una vez y reintenta
+  if (res.status === 401 && !_retried && !path.startsWith("/api/auth/")) {
+    const refreshed = await fetch("/api/auth/refresh", { method: "POST" });
+    if (refreshed.ok) return api<T>(path, options, true);
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error((data as { error?: string } | null)?.error ?? `Error ${res.status}`);
@@ -226,7 +231,19 @@ function buildReport(params: {
   } satisfies Report;
 }
 
+type AuthState =
+  | { status: "checking" }
+  | { status: "guest" }
+  | { status: "authed"; name: string; role: string }
+  | { status: "needs-login" };
+
 export default function SupervisorPage() {
+  const [auth, setAuth] = useState<AuthState>({ status: "checking" });
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+
   const [view, setView] = useState<View>("config");
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [supervisor, setSupervisor] = useState<string>("");
@@ -264,11 +281,51 @@ export default function SupervisorPage() {
   const score = countGoals(eventsByTeam);
   const assignment = assignments.find((a) => a.supervisor_name === supervisor) ?? null;
 
+  // Chequeo de sesión al entrar: authed | guest (modo abierto) | needs-login
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d: { user: { name: string; role: string } | null; openMode: boolean }) => {
+        if (d.user) setAuth({ status: "authed", name: d.user.name, role: d.user.role });
+        else if (d.openMode) setAuth({ status: "guest" });
+        else setAuth({ status: "needs-login" });
+      })
+      .catch(() => setAuth({ status: "needs-login" }));
+  }, []);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoginError("");
+    setLoginBusy(true);
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "No se pudo iniciar sesión");
+      setAuth({ status: "authed", name: d.name, role: d.role });
+      setLoginPassword("");
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Error de inicio de sesión");
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setAuth({ status: "needs-login" });
+    setView("config");
+  }
+
+  useEffect(() => {
+    if (auth.status === "checking" || auth.status === "needs-login") return;
     api<Assignment[]>("/api/agenda")
       .then(setAssignments)
       .catch((err) => console.error("No se pudieron cargar las asignaciones:", err));
-  }, []);
+  }, [auth.status]);
 
   async function loadAgenda(fieldNumber: number) {
     try {
@@ -609,6 +666,63 @@ export default function SupervisorPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "No se pudo publicar el acta");
     }
+  }
+
+  // Pantalla de carga mientras se verifica la sesión
+  if (auth.status === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] text-[color:var(--primary)]">
+        <p className="text-sm font-semibold">Cargando...</p>
+      </div>
+    );
+  }
+
+  // Pantalla de login (solo cuando ya existe staff registrado)
+  if (auth.status === "needs-login") {
+    return (
+      <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
+        <Header />
+        <main className="flex flex-1 items-center justify-center px-4 py-8">
+          <form
+            onSubmit={handleLogin}
+            className="w-full max-w-sm space-y-5 rounded-[2rem] border border-[#d8def3] bg-white p-6 shadow-[0_20px_40px_rgba(35,60,151,0.05)]"
+          >
+            <div className="space-y-1 text-center">
+              <h1 className="text-2xl font-medium tracking-wide text-[color:var(--primary)]">Mesa de control</h1>
+              <p className="text-sm text-slate-400">Ingresa con tu cuenta de staff</p>
+            </div>
+            <input
+              type="email"
+              required
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              placeholder="correo@tmtcup.com"
+              className="h-14 w-full rounded-[1.25rem] border-2 border-[#c9d1f0] bg-[#f9fbff] px-5 text-base outline-none focus:border-[color:var(--primary)] focus:bg-white"
+            />
+            <input
+              type="password"
+              required
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              placeholder="Contraseña"
+              className="h-14 w-full rounded-[1.25rem] border-2 border-[#c9d1f0] bg-[#f9fbff] px-5 text-base outline-none focus:border-[color:var(--primary)] focus:bg-white"
+            />
+            {loginError && (
+              <p className="rounded-[1rem] bg-[color:var(--danger)]/10 px-4 py-2 text-sm font-semibold text-[color:var(--danger)]">
+                {loginError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={loginBusy}
+              className="h-14 w-full rounded-[1.25rem] bg-[color:var(--primary)] text-lg font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {loginBusy ? "Ingresando..." : "Iniciar sesión"}
+            </button>
+          </form>
+        </main>
+      </div>
+    );
   }
 
   return (

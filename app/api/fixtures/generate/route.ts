@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // POST /api/fixtures/generate → genera el calendario de la fase de grupos:
 // todos contra todos dentro de cada grupo, en la cancha fija del grupo,
@@ -26,6 +27,9 @@ function roundRobin(ids: number[]): Array<[number, number]> {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json().catch(() => ({}));
 

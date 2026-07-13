@@ -1,8 +1,12 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // POST /api/assignments → asignar supervisor + árbitro a una cancha para un día
 // (upsert: si ya existe la dupla día+cancha, se actualiza)
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json();
 

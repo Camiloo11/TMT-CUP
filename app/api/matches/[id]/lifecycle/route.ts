@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 type Db = ReturnType<typeof getSupabase>;
 
@@ -75,6 +76,9 @@ export async function POST(
   if (Number.isNaN(matchId)) {
     return Response.json({ error: "id inválido" }, { status: 400 });
   }
+
+  const auth = await requireRole(["SUPERVISOR"]);
+  if (isAuthError(auth)) return auth;
 
   const body = await request.json();
   const action = body.action as string;

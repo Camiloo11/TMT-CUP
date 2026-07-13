@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // DELETE /api/matches/[id]/events/[eventId] → "quitar en caliente"
 // El supervisor solo puede deshacer un evento MIENTRAS el partido sigue
@@ -7,6 +8,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
+  const auth = await requireRole(["SUPERVISOR"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const { id, eventId } = await params;
   const matchId = Number(id);
