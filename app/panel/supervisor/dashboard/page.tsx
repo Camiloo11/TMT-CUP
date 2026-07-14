@@ -454,10 +454,10 @@ export default function SupervisorPage() {
               {/* CONTENEDOR DEL CRONÓMETRO */}
               <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-6 shadow-[0_12px_35px_rgba(16,32,76,0.12)] text-center relative overflow-hidden">
                 <div className="flex items-center justify-between w-full mb-3">
-                  <div className="bg-[#10204c] text-white text-[11px] font-black px-3 py-1 rounded-full shadow-xs tracking-wide">
+                  <div className="bg-[#10204c] text-white text-[12px] font-weight px-3 py-1 rounded-full shadow-xs tracking-wide">
                     Prog: {selectedMatch.time}
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#10204c]/50 bg-[#10204c]/5 px-2.5 py-1 rounded-full">
+                  <span className="text-[12px] font-weight tracking-wider text-[#10204c]/50 bg-[#10204c]/5 px-2.5 py-1 rounded-full">
                     {selectedMatch.phase}
                   </span>
                 </div>
