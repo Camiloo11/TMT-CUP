@@ -323,7 +323,13 @@ export default function SupervisorPage() {
   useEffect(() => {
     if (auth.status === "checking" || auth.status === "needs-login") return;
     api<Assignment[]>("/api/agenda")
-      .then(setAssignments)
+      .then((data) => {
+        setAssignments(data);
+        // Si hoy solo hay una asignación, selecciona ese perfil automáticamente
+        if (data.length === 1) {
+          setSupervisor((current) => current || data[0].supervisor_name);
+        }
+      })
       .catch((err) => console.error("No se pudieron cargar las asignaciones:", err));
   }, [auth.status]);
 
@@ -840,6 +846,22 @@ export default function SupervisorPage() {
                     Ingresar al panel
                   </button>
                 </div>
+
+                {/* Sesión activa + cerrar sesión */}
+                {auth.status === "authed" && (
+                  <p className="pt-3 text-center text-sm text-slate-400">
+                    Sesión:{" "}
+                    <span className="font-semibold text-[color:var(--primary)]">{auth.name}</span>{" "}
+                    ({auth.role === "ADMIN" ? "Admin" : "Supervisor"}) ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => void handleLogout()}
+                      className="font-semibold text-[color:var(--danger)] underline-offset-2 hover:underline"
+                    >
+                      Cerrar sesión
+                    </button>
+                  </p>
+                )}
               </div>
             </section>
           )}
