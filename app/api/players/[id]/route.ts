@@ -16,7 +16,13 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const patch: { name?: string; number?: number | null; photo_url?: string | null } = {};
+  const patch: {
+    name?: string;
+    number?: number | null;
+    photo_url?: string | null;
+    attended?: boolean;
+    amount_paid?: number;
+  } = {};
 
   if (body.name !== undefined) {
     const name = String(body.name).trim();
@@ -28,6 +34,16 @@ export async function PATCH(
   }
   if (body.photoUrl !== undefined) {
     patch.photo_url = body.photoUrl || null;
+  }
+  if (body.attended !== undefined) {
+    patch.attended = Boolean(body.attended);
+  }
+  if (body.amountPaid !== undefined) {
+    const n = Number(body.amountPaid);
+    if (Number.isNaN(n) || n < 0) {
+      return Response.json({ error: "amountPaid inválido" }, { status: 400 });
+    }
+    patch.amount_paid = Math.round(n);
   }
   if (Object.keys(patch).length === 0) {
     return Response.json({ error: "Nada que actualizar" }, { status: 400 });

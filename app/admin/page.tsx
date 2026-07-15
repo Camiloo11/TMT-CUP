@@ -17,11 +17,11 @@ async function api<T = unknown>(path: string, options?: RequestInit): Promise<T>
 }
 
 type Team = { id: number; name: string; category: "MASCULINO" | "FEMENINO"; group_id: number | null };
-type Player = { id: number; name: string; number: number | null; photo_url: string | null; team: { id: number; name: string } | null };
+type Player = { id: number; name: string; number: number | null; photo_url: string | null; attended: boolean; amount_paid: number; team: { id: number; name: string } | null };
 type Assignment = { id: number; day: string; field_number: number; supervisor_name: string; referee_name: string };
 type StatsResp = { goleadores: Array<{ player: string; team: string; goles: number }> };
 
-type Section = "equipos" | "jugadores" | "staff" | "sorteo" | "fixture";
+type Section = "equipos" | "jugadores" | "asistencia" | "staff" | "sorteo" | "fixture";
 
 export default function AdminPage() {
   const [auth, setAuth] = useState<"checking" | "authed" | "denied">("checking");
@@ -68,6 +68,7 @@ export default function AdminPage() {
   const tabs: Array<{ id: Section; label: string }> = [
     { id: "equipos", label: "Equipos" },
     { id: "jugadores", label: "Jugadores" },
+    { id: "asistencia", label: "Asistencia" },
     { id: "staff", label: "Staff" },
     { id: "sorteo", label: "Sorteo" },
     { id: "fixture", label: "Fixture" },
@@ -108,6 +109,7 @@ export default function AdminPage() {
 
         {section === "equipos" && <TeamsSection onFlash={setFlash} />}
         {section === "jugadores" && <PlayersSection onFlash={setFlash} />}
+        {section === "asistencia" && <AttendanceSection onFlash={setFlash} />}
         {section === "staff" && <StaffSection onFlash={setFlash} />}
         {section === "sorteo" && <DrawSection onFlash={setFlash} />}
         {section === "fixture" && <FixtureSection onFlash={setFlash} />}
@@ -396,6 +398,143 @@ function PlayersSection({ onFlash }: FlashProp) {
           ))}
         </ul>
       </div>
+    </Card>
+  );
+}
+
+// ─── ASISTENCIA Y PAGOS (check-in del día) ──────────────────
+const PRICE_FULL = 160000; // inscripción completa (COP)
+const DEPOSIT = 100000;    // abono típico (COP)
+
+function cop(n: number) {
+  return "$" + n.toLocaleString("es-CO");
+}
+
+function AttendanceSection({ onFlash }: FlashProp) {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamFilter, setTeamFilter] = useState<number | "">("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([api<Player[]>("/api/players"), api<Team[]>("/api/teams")])
+      .then(([p, t]) => {
+        setPlayers(p);
+        setTeams(t);
+      })
+      .catch((e) => console.error(e))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function patch(p: Player, body: { attended?: boolean; amountPaid?: number }) {
+    try {
+      await api(`/api/players/${p.id}`, { method: "PATCH", body: JSON.stringify(body) });
+      setPlayers((cur) =>
+        cur.map((x) =>
+          x.id === p.id
+            ? {
+                ...x,
+                ...(body.attended !== undefined ? { attended: body.attended } : {}),
+                ...(body.amountPaid !== undefined ? { amount_paid: body.amountPaid } : {}),
+              }
+            : x,
+        ),
+      );
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
+  function setAmount(p: Player) {
+    const raw = window.prompt("Monto pagado (COP):", String(p.amount_paid));
+    if (raw === null) return;
+    const n = Number(raw.replace(/\D/g, ""));
+    if (!Number.isNaN(n)) void patch(p, { amountPaid: n });
+  }
+
+  const shown = teamFilter ? players.filter((p) => p.team?.id === teamFilter) : players;
+  const present = shown.filter((p) => p.attended).length;
+  const collected = shown.reduce((s, p) => s + p.amount_paid, 0);
+  const pending = shown.reduce((s, p) => s + Math.max(0, PRICE_FULL - p.amount_paid), 0);
+
+  function payInfo(paid: number) {
+    if (paid <= 0) return { label: "Sin pago", cls: "bg-[#F83636]/10 text-[#F83636]" };
+    if (paid < PRICE_FULL)
+      return { label: `Abono · debe ${cop(PRICE_FULL - paid)}`, cls: "bg-[#F7C600]/25 text-[#8d6b00]" };
+    return { label: "Completo", cls: "bg-emerald-500/10 text-emerald-700" };
+  }
+
+  return (
+    <Card title="Asistencia y pagos">
+      {loading ? (
+        <p className="text-sm text-slate-500">Cargando jugadores...</p>
+      ) : players.length === 0 ? (
+        <p className="text-sm text-slate-500">Aún no hay jugadores inscritos.</p>
+      ) : (
+        <div className="space-y-4">
+          {/* Resumen */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-[#eef3ff] px-2 py-3">
+              <p className="text-xs font-semibold text-slate-500">Presentes</p>
+              <p className="text-lg font-black text-[#233c97]">{present}/{shown.length}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-500/10 px-2 py-3">
+              <p className="text-xs font-semibold text-slate-500">Recaudado</p>
+              <p className="text-lg font-black text-emerald-700">{cop(collected)}</p>
+            </div>
+            <div className="rounded-xl bg-[#F83636]/10 px-2 py-3">
+              <p className="text-xs font-semibold text-slate-500">Pendiente</p>
+              <p className="text-lg font-black text-[#F83636]">{cop(pending)}</p>
+            </div>
+          </div>
+
+          {/* Filtro por equipo */}
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value ? Number(e.target.value) : "")}
+            className="h-11 w-full rounded-xl border-2 border-[#c9d1f0] bg-[#f9fbff] px-4 text-sm outline-none focus:border-[#233c97]"
+          >
+            <option value="">Todos los equipos ({players.length})</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
+            ))}
+          </select>
+
+          {/* Lista */}
+          <ul className="space-y-2">
+            {shown.map((p) => {
+              const info = payInfo(p.amount_paid);
+              return (
+                <li key={p.id} className="space-y-2 rounded-xl bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-800">{p.name}</p>
+                      <p className="text-xs text-slate-500">{p.team?.name ?? "—"}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void patch(p, { attended: !p.attended })}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        p.attended ? "bg-emerald-500 text-white" : "border border-slate-300 bg-white text-slate-500"
+                      }`}
+                    >
+                      {p.attended ? "✓ Presente" : "Ausente"}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${info.cls}`}>{info.label}</span>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => void patch(p, { amountPaid: DEPOSIT })} className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#233c97] border border-[#233c97]/20">Abono</button>
+                      <button type="button" onClick={() => void patch(p, { amountPaid: PRICE_FULL })} className="rounded-full bg-[#233c97] px-2.5 py-1 text-xs font-bold text-white">Completo</button>
+                      <button type="button" onClick={() => setAmount(p)} className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 border border-slate-300">Otro</button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }
