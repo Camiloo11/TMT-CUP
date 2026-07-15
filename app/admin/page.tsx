@@ -170,8 +170,43 @@ function TeamsSection({ onFlash }: FlashProp) {
     } finally { setBusy(false); }
   }
 
+  async function remove(t: Team) {
+    if (!window.confirm(`¿Borrar el equipo "${t.name}" y sus jugadores?`)) return;
+    try {
+      await api(`/api/teams/${t.id}`, { method: "DELETE" });
+      onFlash({ tone: "ok", msg: `Equipo "${t.name}" borrado` });
+      await load();
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
+  async function rename(t: Team) {
+    const next = window.prompt("Nuevo nombre del equipo:", t.name);
+    if (next === null) return;
+    const name = next.trim();
+    if (!name || name === t.name) return;
+    try {
+      await api(`/api/teams/${t.id}`, { method: "PATCH", body: JSON.stringify({ name }) });
+      onFlash({ tone: "ok", msg: "Equipo actualizado" });
+      await load();
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
   const masc = teams.filter((t) => t.category === "MASCULINO");
   const fem = teams.filter((t) => t.category === "FEMENINO");
+
+  const teamRow = (t: Team) => (
+    <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
+      <span className="truncate">{t.name}</span>
+      <span className="flex shrink-0 gap-1.5 text-xs">
+        <button type="button" onClick={() => void rename(t)} title="Renombrar" className="text-slate-400 hover:text-[#233c97]">✎</button>
+        <button type="button" onClick={() => void remove(t)} title="Borrar" className="text-slate-400 hover:text-[#f83636]">✕</button>
+      </span>
+    </li>
+  );
 
   return (
     <Card title="Equipos">
@@ -195,11 +230,11 @@ function TeamsSection({ onFlash }: FlashProp) {
       <div className="grid grid-cols-2 gap-4 pt-2">
         <div>
           <p className="text-xs font-bold uppercase text-slate-500 mb-2">Masculino ({masc.length})</p>
-          <ul className="space-y-1 text-sm">{masc.map((t) => <li key={t.id} className="rounded-lg bg-slate-50 px-3 py-1.5">{t.name}</li>)}</ul>
+          <ul className="space-y-1 text-sm">{masc.map(teamRow)}</ul>
         </div>
         <div>
           <p className="text-xs font-bold uppercase text-slate-500 mb-2">Femenino ({fem.length})</p>
-          <ul className="space-y-1 text-sm">{fem.map((t) => <li key={t.id} className="rounded-lg bg-slate-50 px-3 py-1.5">{t.name}</li>)}</ul>
+          <ul className="space-y-1 text-sm">{fem.map(teamRow)}</ul>
         </div>
       </div>
     </Card>
@@ -241,6 +276,31 @@ function PlayersSection({ onFlash }: FlashProp) {
     } finally { setBusy(false); }
   }
 
+  async function remove(p: Player) {
+    if (!window.confirm(`¿Borrar al jugador "${p.name}"?`)) return;
+    try {
+      await api(`/api/players/${p.id}`, { method: "DELETE" });
+      onFlash({ tone: "ok", msg: `Jugador "${p.name}" borrado` });
+      setPlayers(await api<Player[]>("/api/players"));
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
+  async function rename(p: Player) {
+    const next = window.prompt("Nuevo nombre del jugador:", p.name);
+    if (next === null) return;
+    const value = next.trim();
+    if (!value || value === p.name) return;
+    try {
+      await api(`/api/players/${p.id}`, { method: "PATCH", body: JSON.stringify({ name: value }) });
+      onFlash({ tone: "ok", msg: "Jugador actualizado" });
+      setPlayers(await api<Player[]>("/api/players"));
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
   return (
     <Card title="Inscripción de jugadores">
       {teams.length === 0 ? (
@@ -266,9 +326,13 @@ function PlayersSection({ onFlash }: FlashProp) {
         <p className="text-xs font-bold uppercase text-slate-500 mb-2">Últimos inscritos ({players.length})</p>
         <ul className="space-y-1 text-sm max-h-64 overflow-y-auto">
           {players.slice(-20).reverse().map((p) => (
-            <li key={p.id} className="flex justify-between rounded-lg bg-slate-50 px-3 py-1.5">
-              <span>{p.name}</span>
-              <span className="text-slate-500">{p.team?.name ?? "—"}</span>
+            <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
+              <span className="truncate">{p.name}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="text-slate-500">{p.team?.name ?? "—"}</span>
+                <button type="button" onClick={() => void rename(p)} title="Renombrar" className="text-xs text-slate-400 hover:text-[#233c97]">✎</button>
+                <button type="button" onClick={() => void remove(p)} title="Borrar" className="text-xs text-slate-400 hover:text-[#f83636]">✕</button>
+              </span>
             </li>
           ))}
         </ul>
