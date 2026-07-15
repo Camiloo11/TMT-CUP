@@ -249,6 +249,7 @@ function PlayersSection({ onFlash }: FlashProp) {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [busy, setBusy] = useState(false);
+  const [photoBusyId, setPhotoBusyId] = useState<number | null>(null);
 
   useEffect(() => {
     api<Team[]>("/api/teams").then(setTeams).catch(console.error);
@@ -302,15 +303,32 @@ function PlayersSection({ onFlash }: FlashProp) {
   }
 
   async function uploadPhoto(p: Player, file: File) {
-    const body = new FormData();
-    body.append("file", file);
+    setPhotoBusyId(p.id);
     try {
+      // Quita el fondo EN EL NAVEGADOR antes de subir (import dinámico para
+      // no cargar el modelo hasta que de verdad se use). Si falla, sube la
+      // foto original para no dejar al admin sin poder cargar nada.
+      let toUpload: Blob = file;
+      let filename = file.name;
+      try {
+        const { removeBackground } = await import("@imgly/background-removal");
+        toUpload = await removeBackground(file);
+        filename = "foto.png"; // el recorte sale como PNG transparente
+      } catch (bgErr) {
+        console.error("No se pudo quitar el fondo, se sube el original:", bgErr);
+        onFlash({ tone: "err", msg: "No se pudo quitar el fondo; se subió la foto original." });
+      }
+
+      const body = new FormData();
+      body.append("file", new File([toUpload], filename, { type: toUpload.type || file.type }));
       const r = await fetch(`/api/players/${p.id}/photo`, { method: "POST", body });
       if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? "No se pudo subir");
       onFlash({ tone: "ok", msg: `Foto de "${p.name}" actualizada` });
       setPlayers(await api<Player[]>("/api/players"));
     } catch (err) {
       onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    } finally {
+      setPhotoBusyId(null);
     }
   }
 
@@ -350,19 +368,27 @@ function PlayersSection({ onFlash }: FlashProp) {
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-slate-500">{p.team?.name ?? "—"}</span>
-                <label title="Subir foto" className="cursor-pointer text-xs text-slate-400 hover:text-[#233c97]">
-                  📷
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void uploadPhoto(p, f);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
+                {photoBusyId === p.id ? (
+                  <span title="Quitando el fondo y subiendo..." className="animate-pulse text-xs">⏳</span>
+                ) : (
+                  <label
+                    title="Subir foto (le quita el fondo automáticamente)"
+                    className={`text-xs text-slate-400 hover:text-[#233c97] ${photoBusyId !== null ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
+                  >
+                    📷
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      disabled={photoBusyId !== null}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void uploadPhoto(p, f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
                 <button type="button" onClick={() => void rename(p)} title="Renombrar" className="text-xs text-slate-400 hover:text-[#233c97]">✎</button>
                 <button type="button" onClick={() => void remove(p)} title="Borrar" className="text-xs text-slate-400 hover:text-[#f83636]">✕</button>
               </span>
