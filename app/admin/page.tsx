@@ -17,7 +17,7 @@ async function api<T = unknown>(path: string, options?: RequestInit): Promise<T>
 }
 
 type Team = { id: number; name: string; category: "MASCULINO" | "FEMENINO"; group_id: number | null };
-type Player = { id: number; name: string; number: number | null; team: { id: number; name: string } | null };
+type Player = { id: number; name: string; number: number | null; photo_url: string | null; team: { id: number; name: string } | null };
 type Assignment = { id: number; day: string; field_number: number; supervisor_name: string; referee_name: string };
 type StatsResp = { goleadores: Array<{ player: string; team: string; goles: number }> };
 
@@ -301,6 +301,19 @@ function PlayersSection({ onFlash }: FlashProp) {
     }
   }
 
+  async function uploadPhoto(p: Player, file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const r = await fetch(`/api/players/${p.id}/photo`, { method: "POST", body });
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? "No se pudo subir");
+      onFlash({ tone: "ok", msg: `Foto de "${p.name}" actualizada` });
+      setPlayers(await api<Player[]>("/api/players"));
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    }
+  }
+
   return (
     <Card title="Inscripción de jugadores">
       {teams.length === 0 ? (
@@ -327,9 +340,29 @@ function PlayersSection({ onFlash }: FlashProp) {
         <ul className="space-y-1 text-sm max-h-64 overflow-y-auto">
           {players.slice(-20).reverse().map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
-              <span className="truncate">{p.name}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden
+                  className="h-7 w-7 shrink-0 rounded-full bg-slate-200 bg-cover bg-center"
+                  style={p.photo_url ? { backgroundImage: `url(${p.photo_url})` } : undefined}
+                />
+                <span className="truncate">{p.name}</span>
+              </span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-slate-500">{p.team?.name ?? "—"}</span>
+                <label title="Subir foto" className="cursor-pointer text-xs text-slate-400 hover:text-[#233c97]">
+                  📷
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void uploadPhoto(p, f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
                 <button type="button" onClick={() => void rename(p)} title="Renombrar" className="text-xs text-slate-400 hover:text-[#233c97]">✎</button>
                 <button type="button" onClick={() => void remove(p)} title="Borrar" className="text-xs text-slate-400 hover:text-[#f83636]">✕</button>
               </span>
