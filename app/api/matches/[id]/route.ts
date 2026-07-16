@@ -24,11 +24,12 @@ export async function GET(
     if (error) return Response.json({ error: error.message }, { status: 500 });
     if (!match) return Response.json({ error: "Partido no encontrado" }, { status: 404 });
 
-    // Equipos con plantilla en una consulta aparte (más simple = más robusto)
-    const { data: teams, error: teamErr } = await supabase
-      .from("teams")
-      .select("*, players(*)")
-      .in("id", [match.team_a_id, match.team_b_id]);
+    // Equipos con plantilla en una consulta aparte (más simple = más robusto).
+    // Los partidos de fase final pueden tener equipos "por definir" (null).
+    const teamIds = [match.team_a_id, match.team_b_id].filter((n): n is number => n !== null);
+    const { data: teams, error: teamErr } = teamIds.length
+      ? await supabase.from("teams").select("*, players(*)").in("id", teamIds)
+      : { data: [], error: null };
     if (teamErr) return Response.json({ error: `teams: ${teamErr.message}` }, { status: 500 });
 
     const teamARaw = (teams ?? []).find((t) => t.id === match.team_a_id) ?? null;

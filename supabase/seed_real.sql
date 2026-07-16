@@ -2,7 +2,12 @@
 -- TMT-CUP — SEED REAL (torneo del 18 de julio de 2026)
 -- Generado desde MinaMinTMTCUP.2026 (hoja HorariosDetallado + Liga Fem).
 -- Correr DESPUES de reset.sql (base vacia de datos del torneo).
--- Zona: Bogota (-05:00) · 1er partido 14:00 (2:00 PM) · slots de 30 min.
+-- Requiere la migracion 20260716000000_full_fixture (matches.category
+-- y equipos opcionales para los placeholders de fase final).
+-- Zona: America/Bogota · 1er partido 2:00 PM · slots de 30 min.
+-- OJO: usar el NOMBRE de zona (America/Bogota), nunca el offset '-05:00':
+-- Postgres interpreta los offsets con signo POSIX invertido y las horas
+-- quedan 10 horas antes (el bug de partidos "a las 4 AM").
 -- ============================================================
 
 -- 1) Grupos (A,B,C masculinos + F femenino) con su cancha fija
@@ -35,10 +40,10 @@ from (values ('Colombia'), ('Francia'), ('Cabo Verde'), ('Portugal')) as v(name)
 cross join (select id from groups where name = 'F') g;
 
 -- 4) Partidos de grupos: cruces y horas EXACTOS del Excel
-insert into matches (phase, status, field_number, scheduled_at, team_a_id, team_b_id)
+insert into matches (phase, status, field_number, scheduled_at, category, team_a_id, team_b_id)
 select 'GRUPOS'::phase, 'PROGRAMADO'::match_status, fx.field,
-       (timestamp '2026-07-18 14:00' at time zone '-05:00') + (fx.jornada - 1) * interval '30 minutes',
-       ha.id, aw.id
+       (timestamp '2026-07-18 14:00' at time zone 'America/Bogota') + (fx.jornada - 1) * interval '30 minutes',
+       fx.cat::category, ha.id, aw.id
 from (values
   ('MASCULINO',1,1,'Argentina','Brasil'),
   ('MASCULINO',1,2,'Italia','Alemania'),
@@ -68,7 +73,19 @@ from (values
 join teams ha on ha.name = fx.home and ha.category = fx.cat::category
 join teams aw on aw.name = fx.away and aw.category = fx.cat::category;
 
--- 5) Asignaciones de cancha (supervisor + arbitro) — segun Excel + ajustes
+-- 5) Fase final visible desde el inicio: placeholders con equipos "por definir".
+--    Se llenan SOLOS cuando terminan los grupos/semis de cada categoria.
+--    Horarios del Excel: semis 5:00 y 5:30 PM · final 6:05 PM.
+--    Masculino en cancha 1 (final en cancha 5) · Femenino todo en cancha 4.
+insert into matches (phase, status, field_number, scheduled_at, category, team_a_id, team_b_id) values
+  ('SEMIFINAL', 'PROGRAMADO', 1, (timestamp '2026-07-18 17:00' at time zone 'America/Bogota'), 'MASCULINO', null, null),
+  ('SEMIFINAL', 'PROGRAMADO', 1, (timestamp '2026-07-18 17:30' at time zone 'America/Bogota'), 'MASCULINO', null, null),
+  ('FINAL',     'PROGRAMADO', 5, (timestamp '2026-07-18 18:05' at time zone 'America/Bogota'), 'MASCULINO', null, null),
+  ('SEMIFINAL', 'PROGRAMADO', 4, (timestamp '2026-07-18 17:00' at time zone 'America/Bogota'), 'FEMENINO',  null, null),
+  ('SEMIFINAL', 'PROGRAMADO', 4, (timestamp '2026-07-18 17:30' at time zone 'America/Bogota'), 'FEMENINO',  null, null),
+  ('FINAL',     'PROGRAMADO', 4, (timestamp '2026-07-18 18:05' at time zone 'America/Bogota'), 'FEMENINO',  null, null);
+
+-- 6) Asignaciones de cancha (supervisor + arbitro) — segun Excel + ajustes
 insert into pitch_assignments (day, field_number, supervisor_name, referee_name) values
   ('2026-07-18', 1, 'Ana Benavides',   'Samuel Valenzuela'),
   ('2026-07-18', 2, 'Sara Nieto',      'Kevin Aguilar'),

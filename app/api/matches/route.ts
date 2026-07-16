@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/matches → todos los partidos, ordenados por fecha, con sus equipos
 export async function GET() {
@@ -15,8 +16,11 @@ export async function GET() {
   return Response.json(matches);
 }
 
-// POST /api/matches → programar un partido nuevo
+// POST /api/matches → programar un partido nuevo (solo administradores)
 export async function POST(request: Request) {
+  const auth = await requireRole(["ADMIN"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json();
 
@@ -35,6 +39,10 @@ export async function POST(request: Request) {
     );
   }
 
+  // La categoría del partido se hereda del equipo A
+  const { data: teamA } = await supabase
+    .from("teams").select("category").eq("id", body.teamAId).maybeSingle();
+
   const { data: match, error } = await supabase
     .from("matches")
     .insert({
@@ -43,6 +51,7 @@ export async function POST(request: Request) {
       scheduled_at: new Date(body.scheduledAt).toISOString(), // texto → fecha real
       field_number: body.fieldNumber,
       phase: body.phase,
+      category: teamA?.category ?? null,
     })
     .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*)")
     .single();

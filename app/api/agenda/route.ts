@@ -6,7 +6,11 @@ export async function GET(request: Request) {
   const supabase = getSupabase();
   const url = new URL(request.url);
   const field = url.searchParams.get("field");
-  const day = url.searchParams.get("day") ?? new Date().toISOString().slice(0, 10);
+  // "Hoy" en hora de Bogotá (con UTC, después de las 7 PM la agenda
+  // saltaba al día siguiente y se vaciaba en plena premiación)
+  const day =
+    url.searchParams.get("day") ??
+    new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 
   // Sin cancha: lista de asignaciones (los nombres del dropdown del supervisor)
   if (!field) {

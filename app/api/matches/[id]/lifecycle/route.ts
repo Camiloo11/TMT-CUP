@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
 import { requireRole, isAuthError } from "@/lib/auth";
+import { maybeAdvancePhase } from "@/lib/tournament";
 
 type Db = ReturnType<typeof getSupabase>;
 
@@ -227,6 +228,7 @@ export async function POST(
         { team_id: match.team_a_id, match_id: matchId, type: "W_6MIN", note: "Doble W: no se presentó" },
         { team_id: match.team_b_id, match_id: matchId, type: "W_6MIN", note: "Doble W: no se presentó" },
       ]);
+      await maybeAdvancePhase(supabase, matchId);
       return Response.json(data);
     }
 
@@ -254,6 +256,7 @@ export async function POST(
       type: "W_6MIN",
       note: "No se presentó en los 6 minutos de tolerancia",
     });
+    await maybeAdvancePhase(supabase, matchId);
     return Response.json(data);
   }
 
@@ -280,6 +283,8 @@ export async function POST(
       .select()
       .single();
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    // Si con este partido se cierra la fase, la siguiente se llena sola
+    await maybeAdvancePhase(supabase, matchId);
     return Response.json(data);
   }
 
