@@ -49,6 +49,10 @@ const STAFF = [
   { role: "SUPERVISOR", name: "Sara Rojas",      email: "sara.rojas@tmtcup.com",     password: "Rojas26" },
   { role: "SUPERVISOR", name: "Samuel Sánchez",  email: "samuel.sanchez@tmtcup.com", password: "Sanchez26" },
   // Administradores (control total)
+  // ⚠️ Camilo ya existe (camilo@tmtcup.com); aquí solo se asegura su rol ADMIN.
+  //    Para Simón, cambia el correo/clave placeholder por los reales.
+  { role: "ADMIN", name: "Camilo Ustariz",   email: "camilo@tmtcup.com",           password: "tmt2026admin" },
+  { role: "ADMIN", name: "Simón",            email: "simon@tmtcup.com",            password: "Simon26" },
   { role: "ADMIN", name: "Gabriela Solano",  email: "gabriela.solano@tmtcup.com",  password: "Solano26" },
   { role: "ADMIN", name: "Josué Gutiérrez",  email: "josue.gutierrez@tmtcup.com",  password: "Gutierrez26" },
   { role: "ADMIN", name: "Jimena Cely",      email: "jimena.cely@tmtcup.com",      password: "Cely26" },
