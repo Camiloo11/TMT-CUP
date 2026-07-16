@@ -324,15 +324,15 @@ export default function SupervisorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <main className="flex-1 px-4 py-5 text-[15px] text-slate-800 sm:px-6 sm:py-6 md:px-8">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-5 sm:max-w-lg sm:gap-6 md:max-w-2xl">
+        <div className="mx-auto flex w-full flex-col gap-5 sm:gap-6">
 
           {/* VISTA DEL DASHBOARD / PANEL PRINCIPAL */}
           {view === "dashboard" && (
             <section className="flex flex-1 flex-col gap-6 w-full">
 
-              {/* ENCABEZADO FIJO: FULL-BLEED BASADO EN VIEWPORT (ROBUSTO ANTE CAMBIOS DE PADDING/MAX-WIDTH DEL <main>) */}
-              <header className="sticky top-0 left-1/2 z-50 -mt-5 w-screen -translate-x-1/2 rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins sm:-mt-6">
-                <div className="mx-auto w-full max-w-md px-4 pt-5 pb-4 flex flex-col gap-4 sm:max-w-lg sm:gap-5 sm:px-6 md:max-w-2xl md:px-8">
+              {/* ENCABEZADO FIJO: EL MARGEN NEGATIVO IGUALA EXACTAMENTE EL PADDING DEL <main> EN CADA BREAKPOINT */}
+              <header className="sticky top-0 z-50 -mx-4 -mt-5 w-[calc(100%+2rem)] rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins sm:-mx-6 sm:-mt-6 sm:w-[calc(100%+3rem)] md:-mx-8 md:w-[calc(100%+4rem)]">
+                <div className="mx-auto w-full px-4 pt-5 pb-4 flex flex-col gap-4 sm:gap-5 sm:px-6 md:px-8">
 
                   {/* FILA SUPERIOR: LOGO -> BLOQUE CANCHA GIGANTE -> PERSONAL */}
                   <div className="flex items-center justify-between w-full gap-1">
@@ -721,10 +721,10 @@ export default function SupervisorPage() {
         {/* MODAL DE INCIDENTES RÁPIDOS */}
         {incidentOpen && (
           <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/45 px-4 py-4 backdrop-blur-sm sm:items-center">
-            <div className="w-full max-w-md rounded-[1.8rem] bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-[#10204c]">Reportar incidente</h3>
-                <button type="button" onClick={() => setIncidentOpen(false)} className="text-sm font-semibold text-slate-500 hover:text-slate-800">
+            <div className="w-full max-w-md rounded-[1.8rem] bg-white p-4 shadow-2xl sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-medium text-[#10204c] sm:text-xl">Reportar incidente</h3>
+                <button type="button" onClick={() => setIncidentOpen(false)} className="shrink-0 text-xs font-semibold text-slate-500 hover:text-slate-800 sm:text-sm">
                   Cerrar
                 </button>
               </div>
@@ -732,11 +732,17 @@ export default function SupervisorPage() {
                 value={incidentDraft}
                 onChange={(event) => setIncidentDraft(event.target.value)}
                 placeholder="Escribe los detalles aquí..."
-                className="mt-4 h-32 w-full rounded-[1.2rem] border border-slate-200 p-4 text-sm outline-none resize-none focus:border-[#10204c]"
+                className="mt-3 h-28 w-full rounded-[1.2rem] border border-slate-200 p-3 text-sm outline-none resize-none focus:border-[#10204c] sm:mt-4 sm:h-32 sm:p-4"
               />
-              <button type="button" onClick={submitIncident} className="mt-3 h-14 w-full rounded-full bg-red-600 text-sm font-semibold text-white shadow-md">
-                Guardar nota del incidente
-              </button>
+              <div className="mt-3 flex justify-center sm:mt-4 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={submitIncident}
+                  className="h-11 rounded-full bg-red-600 px-6 text-xs font-semibold text-white shadow-md sm:h-12 sm:px-8 sm:text-sm"
+                >
+                  Guardar nota del incidente
+                </button>
+              </div>
             </div>
           </div>
         )}
