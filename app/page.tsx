@@ -1,28 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
 import { TarjetaPartido } from "./components/TarjetaPartido";
-import { FaseEliminatoria } from "./components/FaseEliminatoria";
-
+import FixtureEliminatoria from "./components/FixtureEliminatoria";
 
 // ── Datos en vivo desde el backend ──────────────────────────
 type StandingRow = {
-  teamId: number; team: string; pj: number; pg: number; pe: number; pp: number;
-  gf: number; gc: number; dg: number; pts: number; amarillas: number; rojas: number;
+  teamId: number;
+  team: string;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  gf: number;
+  gc: number;
+  dg: number;
+  pts: number;
+  amarillas: number;
+  rojas: number;
 };
-type GroupStanding = { group: string; cancha: number; tabla: StandingRow[] };
+
+type GroupStanding = {
+  group: string;
+  cancha: number;
+  tabla: StandingRow[];
+};
+
 type ApiEvent = {
-  id: number; type: string; minute: number | null; team_id: number;
+  id: number;
+  type: string;
+  minute: number | null;
+  team_id: number;
   player: { id: number; name: string } | null;
 };
+
 type ApiMatch = {
-  id: number; phase: string; status: string; field_number: number; scheduled_at: string;
-  team_a_id: number; team_b_id: number; score_a: number | null; score_b: number | null;
-  kickoff_at: string | null; walkover: string | null;
-  teamA: { name: string } | null; teamB: { name: string } | null; events?: ApiEvent[];
+  id: number;
+  phase: string;
+  status: string;
+  field_number: number;
+  scheduled_at: string;
+  team_a_id: number;
+  team_b_id: number;
+  score_a: number | null;
+  score_b: number | null;
+  kickoff_at: string | null;
+  walkover: string | null;
+  teamA: { name: string } | null;
+  teamB: { name: string } | null;
+  events?: ApiEvent[];
 };
 
 type BracketCard = {
@@ -36,18 +65,11 @@ type BracketCard = {
   golesVisita?: number;
   penalesVisita?: number;
 };
-type BracketData = { cuartos: BracketCard[]; semifinales: BracketCard[]; final: BracketCard | null };
 
-// El componente FaseEliminatoria (de Simón) espera ids string y un final no nulo
-function toElimCard(c: BracketCard) {
-  return { ...c, id: String(c.id) };
-}
-const elimPlaceholder = {
-  id: "por-definir",
-  fecha: "Por definir",
-  estado: "PROXIMO" as const,
-  equipoLocal: "Por definir",
-  equipoVisita: "Por definir",
+type BracketData = {
+  cuartos: BracketCard[];
+  semifinales: BracketCard[];
+  final: BracketCard | null;
 };
 
 const phaseLabels: Record<string, string> = {
@@ -95,10 +117,14 @@ function toTarjetaProps(m: ApiMatch) {
 
 export default function PublicLivePage() {
   // Estado compartido para controlar la navegación síncrona
-  const [activeTab, setActiveTab] = useState("partidos");
   const [standings, setStandings] = useState<GroupStanding[]>([]);
   const [liveMatches, setLiveMatches] = useState<ApiMatch[]>([]);
   const [bracket, setBracket] = useState<BracketData | null>(null);
+
+  // Estados locales faltantes de navegación, control de carrusel y género activo
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [generoMovil, setGeneroMovil] = useState<"masculino" | "femenino">("masculino");
+  const carruselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/standings").then((r) => r.json()).then(setStandings).catch(console.error);
@@ -106,89 +132,236 @@ export default function PublicLivePage() {
     fetch("/api/brackets").then((r) => r.json()).then(setBracket).catch(console.error);
   }, []);
 
+  // Navegación interactiva sincronizada
+  const irAVista = (index: number) => {
+    setActiveIndex(index);
+    if (carruselRef.current) {
+      const anchoSli = carruselRef.current.offsetWidth;
+      carruselRef.current.scrollTo({
+        left: index * anchoSli,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  const manejarScrollCarrusel = () => {
+    if (carruselRef.current) {
+      const { scrollLeft, offsetWidth } = carruselRef.current;
+      const indexProximo = Math.round(scrollLeft / offsetWidth);
+      if (indexProximo !== activeIndex) {
+        setActiveIndex(indexProximo);
+      }
+    }
+  };
+
+  // Mapear StandingRow para adaptarlo a la interfaz Equipo que necesita TablaGrupo
+  const adaptarEquipos = (filas: StandingRow[]) =>
+    filas.map((f) => ({
+      nombre: f.team,
+      pj: f.pj,
+      pg: f.pg,
+      pe: f.pe,
+      pp: f.pp,
+      gf: f.gf,
+      gc: f.gc,
+      gd: f.dg, // Mapeo dinámico: la BD entrega 'dg' y la interfaz espera 'gd'
+      amarillas: f.amarillas,
+      rojas: f.rojas,
+      pts: f.pts,
+    }));
+
+  // Separar los grupos basados en el esquema del seed (Masculinos: A, B, C | Femenino: F)
+  const gruposMasculinos = standings.filter((s) => ["A", "B", "C"].includes(s.group));
+  const gruposFemeninos = standings.filter((s) => s.group === "F");
+
+  // Filtrar los partidos por el tipo de torneo de cada género
+  const partidosMasculinos = liveMatches.filter((m) => m.phase !== "FINAL" && m.field_number !== 4);
+  const partidosFemeninos = liveMatches.filter((m) => m.field_number === 4);
+
   return (
-    <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
-      {/* Header Reutilizable Sincronizado */}
-      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div 
+      className="flex min-h-screen flex-col font-poppins overflow-x-hidden relative transition-colors bg-[var(--background)] md:bg-[linear-gradient(to_right,var(--background)_50%,color-mix(in_srgb,var(--primary-feminino,#7c3aed)_4%,var(--background))_50%)]" 
+      style={{ color: "var(--foreground)" }}
+    >
+      {/* Carga externa de los iconos Material Symbols (Man y Woman) */}
+      <link 
+        rel="stylesheet" 
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" 
+      />
 
-      {/* Contenido Principal */}
-      <main className="flex-1 px-4 py-6 max-w-md mx-auto w-full space-y-5 flex flex-col font-poppins">
+      {/* Cabecera horizontal */}
+      <Header activeIndex={activeIndex} onTabChange={irAVista} />
 
-        {/* VISTA 1: GRUPOS */}
-        {activeTab === "grupos" && (
-          <div className="space-y-4">
-            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
-            <div className="text-center mb-4">
-              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
-                Tabla de posiciones
-              </h2>
-            </div>
-
-            {standings.length === 0 ? (
-              <p className="text-center text-sm text-[#10204c]/40 py-8">Aún no hay grupos conformados.</p>
-            ) : (
-              standings.map((g) => (
-                <TablaGrupo
-                  key={g.group}
-                  nombreGrupo={`Grupo ${g.group}`}
-                  equipos={g.tabla.map((r) => ({
-                    nombre: r.team, pj: r.pj, pg: r.pg, pe: r.pe, pp: r.pp,
-                    gf: r.gf, gc: r.gc, gd: r.dg, amarillas: r.amarillas, rojas: r.rojas, pts: r.pts,
-                  }))}
-                />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* VISTA 2: PARTIDOS */}
-        {activeTab === "partidos" && (
-          <div className="space-y-4">
-            {/* TÍTULO CON EFECTO DE LUZ CENTRADO EN POPPINS */}
-            <div className="text-center mb-4">
-              <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
-                Partidos de la fecha
-              </h2>
-            </div>
-
-            {liveMatches.length === 0 ? (
-              <p className="text-center text-sm text-[#10204c]/40 py-8">No hay partidos programados todavía.</p>
-            ) : (
-              liveMatches.map((m) => <TarjetaPartido key={m.id} {...toTarjetaProps(m)} />)
-            )}
-          </div>
-        )}
-
-        {/* VISTA 3: FASE FINAL */}
-        {activeTab === "fixture" && (
-          bracket && (bracket.semifinales.length > 0 || bracket.final) ? (
-            <FaseEliminatoria
-              partidosSemifinal={
-                bracket.semifinales.length > 0
-                  ? bracket.semifinales.map(toElimCard)
-                  : [ { ...elimPlaceholder, id: "semi-1" }, { ...elimPlaceholder, id: "semi-2" } ]
-              }
-              partidoFinal={bracket.final ? toElimCard(bracket.final) : elimPlaceholder}
-            />
-          ) : (
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-black tracking-tight text-[#233c97] sm:text-3xl drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)] font-poppins">
-                  Fase eliminatoria
-                </h2>
+      <main className="flex-1 w-full flex flex-col justify-start pb-28 md:pb-12">
+        <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6">
+          
+          {/* ========================================== */}
+          {/* 1. MÓVIL: VISTA CARRUSEL CON BARRA DE CONTROL */}
+          {/* ========================================== */}
+          <div className="block md:hidden w-full max-w-md mx-auto" data-theme={generoMovil}>
+            <div 
+              ref={carruselRef}
+              onScroll={manejarScrollCarrusel}
+              className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth h-full"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              {/* VISTA 0: GRUPOS */}
+              <div className="w-full flex-shrink-0 snap-start snap-always px-2 py-2 space-y-4">
+                {(generoMovil === "masculino" ? gruposMasculinos : gruposFemeninos).map((g) => (
+                  <TablaGrupo 
+                    key={g.group}
+                    nombreGrupo={`Grupo ${g.group}`} 
+                    equipos={adaptarEquipos(g.tabla)} 
+                    genero={generoMovil}
+                  />
+                ))}
               </div>
-              <div className="w-full bg-white border border-[#10204c]/5 rounded-3xl p-8 shadow-[0_4px_20px_rgba(16,32,76,0.02)] text-center">
-                <p className="text-sm text-[#10204c]/50 font-semibold">
-                  Las llaves se definirán al terminar la fase de grupos. 🏆
-                </p>
+
+              {/* VISTA 1: PARTIDOS (MÓVIL) */}
+              <div className="w-full flex-shrink-0 snap-start snap-always px-2 py-2 space-y-4">
+                {(generoMovil === "masculino" ? partidosMasculinos : partidosFemeninos).map((m) => (
+                  <TarjetaPartido 
+                    key={m.id}
+                    {...toTarjetaProps(m)}
+                    genero={generoMovil}
+                  />
+                ))}
+              </div>
+
+              {/* VISTA 2: FASE FINAL */}
+              <div className="w-full flex-shrink-0 snap-start snap-always px-2 py-2 space-y-4">
+                <FixtureEliminatoria genero={generoMovil} />
               </div>
             </div>
-          )
-        )}
 
+            {/* BARRA FLOTANTE INTERACTIVA DE GÉNERO */}
+            <div className="fixed bottom-6 right-6 z-50 p-1 rounded-full bg-white/70 backdrop-blur-md border border-white/40 shadow-[0_10px_25px_rgba(16,32,76,0.12)] flex items-center gap-1">
+              
+              {/* Botón Masculino */}
+              <button
+                type="button"
+                onClick={() => setGeneroMovil("masculino")}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${
+                  generoMovil === "masculino"
+                    ? "bg-[#233c97] text-white shadow-md scale-[1.05]"
+                    : "text-[#10204c]/50 hover:text-[#10204c]"
+                }`}
+                aria-label="Ver torneo masculino"
+              >
+                <span className="material-symbols-outlined !text-[24px]">man</span>
+              </button>
+
+              {/* Botón Femenino */}
+              <button
+                type="button"
+                onClick={() => setGeneroMovil("femenino")}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${
+                  generoMovil === "femenino"
+                    ? "bg-[#7c3aed] text-white shadow-md scale-[1.05]"
+                    : "text-[#10204c]/50 hover:text-[#10204c]"
+                }`}
+                aria-label="Ver torneo femenino"
+              >
+                <span className="material-symbols-outlined !text-[24px]">woman</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ========================================== */}
+          {/* 2. ESCRITORIO: PARALELO (MASCULINO | FEMENINO) */}
+          {/* ========================================== */}
+          <div className="hidden md:grid grid-cols-2 gap-16 items-start w-full">
+            
+            {/* COLUMNA IZQUIERDA: MASCULINO */}
+            <div className="space-y-6 flex flex-col items-center w-full" data-theme="masculino">
+              {/* Cabecera en formato Burbuja/Píldora Redondeada */}
+              <div className="w-full flex justify-center mb-2">
+                <div className="px-6 py-2.5 rounded-full bg-[#233c97]/5 border border-[#233c97]/15 shadow-sm flex items-center gap-2">
+                  <span className="text-xl font-normal tracking-wide text-[#233c97] font-secondary-modak">
+                    Torneo masculino
+                  </span>
+                </div>
+              </div>
+
+              {activeIndex === 0 && (
+                <div className="w-full space-y-4">
+                  {gruposMasculinos.map((g) => (
+                    <TablaGrupo 
+                      key={g.group}
+                      nombreGrupo={`Grupo ${g.group}`} 
+                      equipos={adaptarEquipos(g.tabla)} 
+                      genero="masculino" 
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeIndex === 1 && (
+                <div className="space-y-4 w-full">
+                  {partidosMasculinos.map((m) => (
+                    <TarjetaPartido 
+                      key={m.id}
+                      {...toTarjetaProps(m)}
+                      genero="masculino"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeIndex === 2 && (
+                <div className="w-full">
+                  <FixtureEliminatoria genero="masculino" />
+                </div>
+              )}
+            </div>
+
+            {/* COLUMNA DERECHA: FEMENINO */}
+            <div className="space-y-6 flex flex-col items-center w-full" data-theme="femenino">
+              {/* Cabecera en formato Burbuja/Píldora Redondeada */}
+              <div className="w-full flex justify-center mb-2">
+                <div className="px-6 py-2.5 rounded-full bg-[#f8f5ff] border border-[#7c3aed]/15 shadow-sm flex items-center gap-2">
+                  <span className="text-xl font-normal tracking-wide text-[#7c3aed] font-secondary-modak">
+                    Torneo femenino
+                  </span>
+                </div>
+              </div>
+
+              {activeIndex === 0 && (
+                <div className="w-full space-y-4">
+                  {gruposFemeninos.map((g) => (
+                    <TablaGrupo 
+                      key={g.group}
+                      nombreGrupo={`Grupo ${g.group}`} 
+                      equipos={adaptarEquipos(g.tabla)} 
+                      genero="femenino" 
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeIndex === 1 && (
+                <div className="space-y-4 w-full">
+                  {partidosFemeninos.map((m) => (
+                    <TarjetaPartido 
+                      key={m.id}
+                      {...toTarjetaProps(m)}
+                      genero="femenino"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeIndex === 2 && (
+                <div className="w-full">
+                  <FixtureEliminatoria genero="femenino" />
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
       </main>
 
-      {/* Footer Reutilizable */}
       <Footer />
     </div>
   );

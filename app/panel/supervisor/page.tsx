@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import Header from "@/app/components/Header";
+import { useRouter } from "next/navigation";
+import HeaderSupervisor from "@/app/components/HeaderSupervisor";
 import Footer from "@/app/components/Footer";
 
 type View = "config" | "dashboard" | "waiting" | "live" | "summary";
@@ -687,7 +688,7 @@ export default function SupervisorPage() {
   if (auth.status === "needs-login") {
     return (
       <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
-        <Header />
+        <HeaderSupervisor />
         <main className="flex flex-1 items-center justify-center px-4 py-8">
           <form
             onSubmit={handleLogin}
@@ -733,136 +734,128 @@ export default function SupervisorPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
-      {/* Header Reutilizable */}
-      <Header />
+      <HeaderSupervisor />
 
-      {/* Contenido Principal de la Mesa de Control */}
-      <main className="flex-1 px-4 pb-16 text-[15px] text-[color:var(--foreground)] sm:px-6">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-6 sm:max-w-lg">
-          
-          {/* VISTA DE CONFIGURACIÓN */}
-          {(view === "config" || (view === "dashboard" && isExiting)) && (
-            <section className={`font-poppins space-y-6 w-full min-h-[65vh] flex flex-col justify-center ${isExiting ? "animate-view-exit-left absolute inset-x-0 px-4 sm:px-6" : ""}`}>
-              <div className="space-y-6">
-                <div className="flex justify-center pt-2">
-                  <Image
-                    src="/assets/Logo_tMtCup.svg"
-                    alt="Logo TMT CUP"
-                    width={320}
-                    height={320}
-                    className="object-contain drop-shadow-[0_12px_24px_rgba(35,60,151,0.12)] sm:h-96 sm:w-96"
-                    priority
-                  />
+      <main className="flex-1 px-4 pb-16 text-[15px] text-[color:var(--foreground)] sm:px-6 flex items-center justify-center">
+        <div className="w-full max-w-md flex flex-col gap-6 sm:max-w-lg items-center">
+
+          {view === "config" && (
+            <section className="font-poppins space-y-6 w-full flex flex-col items-center animate-fade-in">
+              <div className="flex justify-center pt-2">
+                <Image
+                  src="/assets/Logo_tMtCup.svg"
+                  alt="Logo TMT CUP"
+                  width={260}
+                  height={260}
+                  className="object-contain drop-shadow-[0_12px_24px_rgba(35,60,151,0.08)] sm:h-72 sm:w-72"
+                  priority
+                />
+              </div>
+
+              <div className="w-full space-y-6 rounded-3xl border border-[#e2e8f5] bg-white p-6 shadow-[0_15px_35px_rgba(35,60,151,0.04)]">
+                <div className="space-y-1 text-center">
+                  <label className="block text-xl sm:text-2xl font-medium tracking-wide text-[color:var(--primary)]" htmlFor="supervisor-select">
+                    Selecciona tu perfil
+                  </label>
+                  <p className="text-xs sm:text-sm text-slate-400 font-normal">
+                    Elige tu nombre para acceder a la mesa de control
+                  </p>
                 </div>
 
-                <div className="space-y-6 rounded-[2rem] border border-[#d8def3] bg-white p-6 shadow-[0_20px_40px_rgba(35,60,151,0.05)]">
-                  <div className="space-y-1 text-center">
-                    <label className="block text-2xl sm:text-3xl font-medium tracking-wide text-[color:var(--primary)]" htmlFor="supervisor-select">
-                      Selecciona tu perfil
-                    </label>
-                    <p className="text-sm text-slate-400 font-normal">
-                      Elige tu nombre para acceder a la mesa de control
-                    </p>
-                  </div>
-
-                  <div className="relative" ref={supervisorSelectRef}>
-                    <button
-                      type="button"
-                      aria-haspopup="listbox"
-                      aria-expanded={supervisorMenuOpen}
-                      onClick={() => setSupervisorMenuOpen((current) => !current)}
-                      className="flex h-16 w-full items-center justify-between gap-4 rounded-[1.25rem] border-2 border-[#c9d1f0] bg-[#f9fbff] px-5 text-left text-base font-semibold text-[color:var(--foreground)] outline-none transition-all duration-200 focus:border-[color:var(--primary)] focus:bg-white focus:shadow-[0_0_0_5px_rgba(35,60,151,0.1)]"
+                <div className="relative" ref={supervisorSelectRef}>
+                  <button
+                    id="supervisor-select"
+                    type="button"
+                    onClick={() => setSupervisorMenuOpen(!supervisorMenuOpen)}
+                    className="flex h-14 w-full items-center justify-between gap-4 rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 text-left text-sm font-medium text-[color:var(--foreground)] outline-none transition-all duration-200 focus:border-[color:var(--primary)] focus:bg-white focus:shadow-[0_0_0_4px_rgba(35,60,151,0.08)]"
+                  >
+                    <span className={supervisor ? "text-[color:var(--foreground)] font-normal" : "text-slate-400"}>
+                      {supervisor || "Elige tu nombre..."}
+                    </span>
+                    <svg
+                      viewBox="0 0 20 20"
+                      className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${supervisorMenuOpen ? "rotate-180 text-[color:var(--primary)]" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
                     >
-                      <span className={supervisor ? "text-[color:var(--foreground)]" : "text-slate-400"}>
-                        {supervisor || "Elige tu nombre..."}
-                      </span>
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 20 20"
-                        className={`h-5 w-5 shrink-0 text-[color:var(--primary)] transition-transform ${supervisorMenuOpen ? "rotate-180" : "rotate-0"}`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                      <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
 
-                    {supervisorMenuOpen && (
-                      <div
-                        role="listbox"
-                        className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-56 overflow-y-auto rounded-[1.25rem] border border-[#c9d1f0] bg-white p-2 shadow-[0_20px_40px_rgba(35,60,151,0.12)] animate-select-dropdown"
-                      >
-                        {assignments.map((entry) => {
-                          const name = entry.supervisor_name;
-                          const selected = supervisor === name;
-                          return (
-                            <button
-                              key={name}
-                              type="button"
-                              role="option"
-                              aria-selected={selected}
-                              onClick={() => selectSupervisor(name)}
-                              className={`flex w-full items-center justify-between rounded-[1rem] px-4 py-3 text-left text-base font-semibold transition ${selected ? "bg-[color:var(--primary)] text-white" : "bg-white text-[color:var(--foreground)] hover:bg-[#eef3ff]"}`}
-                            >
-                              <span>{name}</span>
-                              {selected && <span className="text-sm font-bold text-[color:var(--accent)]">Seleccionado</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {supervisor && (
-                    <div className="grid gap-3 rounded-[1.5rem] border border-[#e2e8f5] bg-[#f9fbff]/60 p-4 text-sm sm:grid-cols-2 animate-fade-in">
-                      {/* Títulos formateados adecuadamente sin mayúsculas sostenidas fijas */}
-                      <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
-                        <p className="text-xs font-medium text-slate-400">Árbitro central</p>
-                        <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment?.referee_name ?? "Por asignar"}</p>
-                      </div>
-                      <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
-                        <p className="text-xs font-medium text-slate-400">Cancha asignada</p>
-                        <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment ? `Cancha ${assignment.field_number}` : "Por asignar"}</p>
-                      </div>
+                  {supervisorMenuOpen && (
+                    <div
+                      role="listbox"
+                      className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-56 overflow-y-auto rounded-[1.25rem] border border-[#c9d1f0] bg-white p-2 shadow-[0_20px_40px_rgba(35,60,151,0.12)] animate-select-dropdown"
+                    >
+                      {assignments.map((entry) => {
+                        const name = entry.supervisor_name;
+                        const selected = supervisor === name;
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            onClick={() => selectSupervisor(name)}
+                            className={`flex w-full items-center justify-between rounded-[1rem] px-4 py-3 text-left text-base font-semibold transition ${selected ? "bg-[color:var(--primary)] text-white" : "bg-white text-[color:var(--foreground)] hover:bg-[#eef3ff]"}`}
+                          >
+                            <span>{name}</span>
+                            {selected && <span className="text-sm font-bold text-[color:var(--accent)]">Seleccionado</span>}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                <div className="flex justify-center pt-2">
-                  <button
-                    type="button"
-                    disabled={!supervisor || isExiting}
-                    onClick={() => {
-                      setIsExiting(true);
-                      if (assignment) void loadAgenda(assignment.field_number);
-                      setView("dashboard");
-                      setTimeout(() => {
-                        setIsExiting(false);
-                      }, 350);
-                    }}
-                    className="inline-flex h-14 w-fit items-center justify-center rounded-[1.25rem] bg-[color:var(--primary)] px-8 text-xl font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none"
-                  >
-                    Ingresar al panel
-                  </button>
-                </div>
-
-                {/* Sesión activa + cerrar sesión */}
-                {auth.status === "authed" && (
-                  <p className="pt-3 text-center text-sm text-slate-400">
-                    Sesión:{" "}
-                    <span className="font-semibold text-[color:var(--primary)]">{auth.name}</span>{" "}
-                    ({auth.role === "ADMIN" ? "Admin" : "Supervisor"}) ·{" "}
-                    <button
-                      type="button"
-                      onClick={() => void handleLogout()}
-                      className="font-semibold text-[color:var(--danger)] underline-offset-2 hover:underline"
-                    >
-                      Cerrar sesión
-                    </button>
-                  </p>
+                {supervisor && (
+                  <div className="grid gap-3 rounded-[1.5rem] border border-[#e2e8f5] bg-[#f9fbff]/60 p-4 text-sm sm:grid-cols-2 animate-fade-in">
+                    <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
+                      <p className="text-xs font-medium text-slate-400">Árbitro central</p>
+                      <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment?.referee_name ?? "Por asignar"}</p>
+                    </div>
+                    <div className="rounded-[1.15rem] border border-[color:var(--border)] bg-white px-4 py-3.5 shadow-sm">
+                      <p className="text-xs font-medium text-slate-400">Cancha asignada</p>
+                      <p className="mt-0.5 text-base font-bold text-[color:var(--foreground)] tracking-wide">{assignment ? `Cancha ${assignment.field_number}` : "Por asignar"}</p>
+                    </div>
+                  </div>
                 )}
               </div>
+
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  disabled={!supervisor || isExiting}
+                  onClick={() => {
+                    setIsExiting(true);
+                    if (assignment) void loadAgenda(assignment.field_number);
+                    setView("dashboard");
+                    setTimeout(() => {
+                      setIsExiting(false);
+                    }, 350);
+                  }}
+                  className="inline-flex h-14 w-fit items-center justify-center rounded-[1.25rem] bg-[color:var(--primary)] px-8 text-xl font-semibold text-white shadow-[0_10px_25px_rgba(35,60,151,0.15)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none"
+                >
+                  Ingresar al panel
+                </button>
+              </div>
+
+              {/* Sesión activa + cerrar sesión */}
+              {auth.status === "authed" && (
+                <p className="pt-3 text-center text-sm text-slate-400">
+                  Sesión:{" "}
+                  <span className="font-semibold text-[color:var(--primary)]">{auth.name}</span>{" "}
+                  ({auth.role === "ADMIN" ? "Admin" : "Supervisor"}) ·{" "}
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    className="font-semibold text-[color:var(--danger)] underline-offset-2 hover:underline"
+                  >
+                    Cerrar sesión
+                  </button>
+                </p>
+              )}
             </section>
           )}
 
@@ -874,7 +867,6 @@ export default function SupervisorPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-white/75">Cancha asignada</p>
-                    {/* Título en minúsculas formales */}
                     <h2 className="text-2xl font-semibold tracking-wide">Cancha {assignment?.field_number ?? "—"}</h2>
                   </div>
                   <div className="rounded-full bg-white/12 px-3 py-2 text-sm font-semibold backdrop-blur-md">Partidos: {agendaSummary.played}/{agendaSummary.total}</div>
@@ -1046,15 +1038,16 @@ export default function SupervisorPage() {
                 />
               </div>
 
-              {/* Botón de incidentes */}
-              <button
-                type="button"
-                onClick={() => setIncidentOpen(true)}
-                className="fixed bottom-28 right-6 z-30 h-14 w-14 rounded-full bg-[color:var(--danger)] text-xl font-bold text-white shadow-lg flex items-center justify-center ring-4 ring-white"
-                aria-label="Abrir reporte de incidentes"
-              >
-                !
-              </button>
+              <div className="flex justify-center pt-1 w-full">
+                <button
+                  type="button"
+                  onClick={() => setIncidentOpen(true)}
+                  className="fixed bottom-28 right-6 z-30 h-14 w-14 rounded-full bg-[color:var(--danger)] text-xl font-bold text-white shadow-lg flex items-center justify-center ring-4 ring-white"
+                  aria-label="Abrir reporte de incidentes"
+                >
+                  !
+                </button>
+              </div>
 
               <div className="sticky bottom-0 z-10 -mx-4 mt-2 border-t border-[color:var(--border)] bg-white/90 px-4 py-3 backdrop-blur-xl">
                 <div className="flex gap-2">

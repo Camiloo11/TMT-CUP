@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 interface Equipo {
   nombre: string;
   pj: number;
@@ -6,79 +10,199 @@ interface Equipo {
   pp: number;
   gf: number;
   gc: number;
-  gd: number; // Puede ser un string o número, ej: "+5" o "-1"
+  gd: number;
   amarillas: number;
   rojas: number;
   pts: number;
 }
 
 interface TablaGrupoProps {
-  nombreGrupo: string; // Ej: "Grupo A", "Grupo B"
+  nombreGrupo: string;
   equipos: Equipo[];
+  genero?: "masculino" | "femenino";
 }
 
-export function TablaGrupo({ nombreGrupo, equipos }: TablaGrupoProps) {
+export function TablaGrupo({ nombreGrupo, equipos, genero = "masculino" }: TablaGrupoProps) {
+  const [equipoExpandido, setEquipoExpandido] = useState<string | null>(null);
+
+  const toggleExpandir = (nombre: string) => {
+    setEquipoExpandido(equipoExpandido === nombre ? null : nombre);
+  };
+
   return (
-    <div className="w-full bg-white border border-[#10204c]/5 rounded-3xl p-4 shadow-[0_4px_20px_rgba(16,32,76,0.02)]">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="text-sm font-bold text-[#233c97]">{nombreGrupo}</h3>
+    <div
+      className="w-full rounded-3xl p-4 md:p-6 shadow-[0_4px_20px_rgba(16,32,76,0.02)] transition-all font-poppins"
+      data-theme={genero}
+      style={{
+        backgroundColor: "var(--card-strong)",
+        border: "1px solid var(--border)"
+      }}
+    >
+      {/* Cabecera del Grupo (Nombre del grupo en negrita) */}
+      <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+        <h3 className="text-lg md:text-xl font-bold tracking-wide" style={{ color: "var(--primary)" }}>
+          {nombreGrupo}
+        </h3>
       </div>
 
-      <div className="overflow-x-auto -mx-2 px-2">
-        <table className="w-full text-left border-collapse min-w-[340px] align-middle">
-          <thead>
-            <tr className="text-[10px] font-bold uppercase tracking-wider text-[#10204c]/40 border-b border-gray-100">
-              <th className="py-2 pl-1 text-left align-middle">Equipo</th>
-              <th className="py-2 text-center w-7 align-middle">pj</th>
-              <th className="py-2 text-center w-7 text-emerald-600 align-middle">pg</th>
-              <th className="py-2 text-center w-7 text-gray-500 align-middle">pe</th>
-              <th className="py-2 text-center w-7 text-rose-600 align-middle">pp</th>
-              <th className="py-2 text-center w-7 align-middle">gf</th>
-              <th className="py-2 text-center w-7 align-middle">gc</th>
-              <th className="py-2 text-center w-7 align-middle">gd</th>
-              <th className="py-2 text-center w-6 text-amber-500 align-middle">🟨</th>
-              <th className="py-2 text-center w-6 text-red-500 align-middle">🟥</th>
-              <th className="py-2 text-center w-8 font-extrabold text-[#233c97] bg-[#233c97]/5 rounded-t-xl align-middle">pts</th>
-            </tr>
-          </thead>
-          <tbody className="text-xs font-semibold text-[#10204c]/80 divide-y divide-gray-50/60">
-            {equipos.map((equipo, index) => {
-              const isFirst = index === 0;
-              const isLast = index === equipos.length - 1;
+      {/* Tabla Principal */}
+      <div className="w-full">
+        {/* Encabezado (Todo en negrita, solo las siglas en mayúscula sostenida) */}
+        <div
+          className="flex items-center text-xs font-bold tracking-wider pb-2 px-2 md:px-4"
+          style={{
+            color: "var(--foreground)",
+            opacity: 0.8,
+            borderBottom: "1px solid var(--border)"
+          }}
+        >
+          <div className="w-8 md:w-12 text-center">Pos</div>
+          <div className="flex-1 text-left pl-2 md:pl-4">Equipo</div>
+          <div className="w-10 md:w-16 text-center">PJ</div>
+          <div className="w-12 md:w-20 text-center">GD</div>
+          <div className="w-12 md:w-20 text-center font-bold" style={{ color: "var(--primary)" }}>PTS</div>
+        </div>
 
-              return (
-                <tr 
-                  key={equipo.nombre} 
-                  className={`align-middle ${
-                    isFirst ? "bg-[#233c97]/5 border-l-4 border-[#f7c600]" : "border-l-4 border-transparent"
-                  } ${isLast ? "opacity-60 bg-gray-50/50" : ""}`}
+        {/* Lista de Equipos */}
+        <div
+          className="divide-y"
+          style={{
+            borderBottom: "1px solid var(--border)",
+            borderColor: "var(--border)"
+          }}
+        >
+          {equipos.map((equipo, index) => {
+            const isFirst = index === 0;
+            const isLast = index === equipos.length - 1;
+            const isExpanded = equipoExpandido === equipo.nombre;
+
+            return (
+              <div key={equipo.nombre} className="flex flex-col">
+                {/* Fila Principal */}
+                <button
+                  type="button"
+                  onClick={() => toggleExpandir(equipo.nombre)}
+                  className={`flex items-center w-full py-3 md:py-4 px-2 md:px-4 text-xs md:text-sm font-normal transition-all text-left ${
+                    isFirst ? "rounded-r-xl" : ""
+                  }`}
+                  style={{
+                    color: "var(--foreground)",
+                    opacity: isLast ? 0.75 : 1,
+                    borderLeft: isFirst ? "4px solid var(--accent)" : "4px solid transparent",
+                    backgroundColor: isFirst
+                      ? "color-mix(in srgb, var(--primary) 8%, transparent)"
+                      : isLast
+                        ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
+                        : "transparent"
+                  }}
                 >
-                  <td className={`py-2 pl-2 align-middle ${isFirst ? "font-bold text-[#233c97] rounded-tl-xl" : ""} ${isLast ? "text-[#10204c]/70 rounded-bl-xl" : ""}`}>
+                  {/* Posición */}
+                  <div
+                    className="w-8 md:w-12 text-center font-medium"
+                    style={{ color: isFirst ? "var(--accent)" : "var(--foreground)", opacity: isFirst ? 1 : 0.4 }}
+                  >
+                    {index + 1}
+                  </div>
+
+                  {/* Nombre Equipo */}
+                  <div className="flex-1 pl-2 md:pl-4 truncate" style={{ color: isFirst ? "var(--primary)" : "var(--foreground)" }}>
                     {equipo.nombre}
-                  </td>
-                  <td className="py-2 text-center align-middle">{equipo.pj}</td>
-                  <td className="py-2 text-center text-emerald-600 align-middle font-bold">{equipo.pg}</td>
-                  <td className="py-2 text-center text-gray-400 align-middle">{equipo.pe}</td>
-                  <td className="py-2 text-center text-rose-600 align-middle">{equipo.pp}</td>
-                  <td className="py-2 text-center align-middle">{equipo.gf}</td>
-                  <td className="py-2 text-center align-middle">{equipo.gc}</td>
-                  <td className="py-2 text-center font-medium align-middle class">
-                    <span className={Number(equipo.gd) > 0 ? "text-emerald-600" : Number(equipo.gd) < 0 ? "text-rose-500" : ""}>
-                      {Number(equipo.gd) > 0 ? `+${equipo.gd}` : equipo.gd}
+                  </div>
+
+                  {/* PJ */}
+                  <div className="w-10 md:w-16 text-center" style={{ opacity: 0.6 }}>{equipo.pj}</div>
+
+                  {/* GD (Diferencia de Goles con color dinámico) */}
+                  <div className="w-12 md:w-20 text-center font-medium">
+                    <span style={{ color: equipo.gd > 0 ? "var(--success)" : equipo.gd < 0 ? "var(--danger)" : "var(--foreground)" }}>
+                      {equipo.gd > 0 ? `+${equipo.gd}` : equipo.gd}
                     </span>
-                  </td>
-                  <td className="py-2 text-center text-[11px] text-[#10204c]/60 align-middle">{equipo.amarillas}</td>
-                  <td className="py-2 text-center text-[11px] text-[#10204c]/60 align-middle">{equipo.rojas}</td>
-                  <td className={`py-2 text-center font-extrabold align-middle ${
-                    isFirst ? "text-[#233c97] bg-[#233c97]/5" : isLast ? "text-[#10204c]/60 bg-gray-100/50 rounded-br-xl" : "bg-[#233c97]/5"
-                  }`}>
+                  </div>
+
+                  {/* Puntos */}
+                  <div className="w-12 md:w-20 text-center font-bold text-sm md:text-base" style={{ color: isFirst ? "var(--primary)" : "var(--foreground)" }}>
                     {equipo.pts}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </button>
+
+                {/* Sub-panel de Estadísticas Expandido */}
+                {isExpanded && (
+                  <div
+                    className="px-4 md:px-6 py-3 md:py-4 text-[11px] md:text-xs grid grid-cols-4 gap-y-3 gap-x-3 border-l-4 border-transparent border-t border-b animate-select-dropdown"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--primary) 4%, transparent)",
+                      borderColor: "var(--border)"
+                    }}
+                  >
+                    {/* Ganados */}
+                    <div
+                      className="flex flex-col p-2 rounded-xl border items-center"
+                      style={{
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--card-strong)"
+                      }}
+                    >
+                      <span className="text-[9px] md:text-[10px] font-normal" style={{ color: "var(--foreground)", opacity: 0.5 }}>ganados</span>
+                      <span className="font-bold mt-0.5 animate-fade-in" style={{ color: "var(--success)" }}>{equipo.pg}</span>
+                    </div>
+
+                    {/* Empatados */}
+                    <div
+                      className="flex flex-col p-2 rounded-xl border items-center"
+                      style={{
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--card-strong)"
+                      }}
+                    >
+                      <span className="text-[9px] md:text-[10px] font-normal" style={{ color: "var(--foreground)", opacity: 0.5 }}>empatados</span>
+                      <span className="font-bold mt-0.5" style={{ color: "var(--foreground)", opacity: 0.7 }}>{equipo.pe}</span>
+                    </div>
+
+                    {/* Perdidos */}
+                    <div
+                      className="flex flex-col p-2 rounded-xl border items-center"
+                      style={{
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--card-strong)"
+                      }}
+                    >
+                      <span className="text-[9px] md:text-[10px] font-normal" style={{ color: "var(--foreground)", opacity: 0.5 }}>perdidos</span>
+                      <span className="font-bold mt-0.5 animate-fade-in" style={{ color: "var(--danger)" }}>{equipo.pp}</span>
+                    </div>
+
+                    {/* Goles Favor / Contra */}
+                    <div
+                      className="flex flex-col p-2 rounded-xl border items-center"
+                      style={{
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--card-strong)"
+                      }}
+                    >
+                      <span className="text-[9px] md:text-[10px] font-normal" style={{ color: "var(--foreground)", opacity: 0.5 }}>goles (f/c)</span>
+                      <span className="font-bold mt-0.5" style={{ color: "var(--foreground)" }}>{equipo.gf} / {equipo.gc}</span>
+                    </div>
+
+                    {/* Sección de Fair Play / Tarjetas */}
+                    <div
+                      className="col-span-4 flex items-center justify-between px-1 mt-1 border-t border-dashed pt-2"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <span className="font-light" style={{ color: "var(--foreground)", opacity: 0.6 }}>juego limpio / tarjetas:</span>
+                      <div className="flex gap-4">
+                        <span className="flex items-center gap-1 font-medium">
+                          <span>🟨</span> {equipo.amarillas}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <span>🟥</span> {equipo.rojas}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

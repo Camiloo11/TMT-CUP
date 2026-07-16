@@ -9,11 +9,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "TMT CUP | Match Supervisor View",
+  title: "tMtCup",
   description: "Mobile-first match supervisor console for fast football tournaments.",
-  icons: {
-    icon: "/assets/Logo_tMtCup.svg",
-  },
 };
 
 export default function RootLayout({

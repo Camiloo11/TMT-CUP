@@ -8,9 +8,27 @@
   --border: rgba(35, 60, 151, 0.12);
   --primary: #233c97;
   --accent: #f7c600;
-  --danger: #f83636;
-  --success: #1f9d55;
+  
+  /* MASCULINO: Verde deportivo clásico y Rojo vivo */
+  --success: #10b981; 
+  --danger: #ff3b30;  
+  
   --font-modak: "Modak", cursive;
+}
+
+/* Tema Femenino */
+[data-theme="femenino"] {
+  --background: #f8f5ff;
+  --foreground: #2f1b5b;
+  --card: rgba(255, 255, 255, 0.9);
+  --card-strong: #ffffff;
+  --border: rgba(124, 58, 237, 0.12);
+  --primary: #7c3aed;
+  --accent: #ff6b8a;
+  
+  /* FEMENINO: Cerceta/Teal profundo y Fucsia oscuro/Carmín */
+  --success: #0d9488; 
+  --danger: #e11d48;  
 }
 
 .font-secondary-modak {
@@ -19,14 +37,16 @@
 
 html {
   min-height: 100%;
-  background: #eef3ff;
+  background: var(--background);
+  transition: background 0.3s ease;
 }
 
 body {
   min-height: 100vh;
-  background: #eef3ff;
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 * {
@@ -69,7 +89,6 @@ textarea {
   animation: fadeInDown 200ms ease-out both;
 }
 
-/* La vista actual sale hacia la izquierda */
 @keyframes slideOutLeft {
   from {
     opacity: 1;
@@ -81,7 +100,6 @@ textarea {
   }
 }
 
-/* La nueva vista entra desde la derecha */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -101,7 +119,6 @@ textarea {
   animation: slideInRight 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Efecto de Desenfoque Gradual Progresivo */
 .blur-gradient-header {
   backdrop-filter: blur(16px);
   -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
