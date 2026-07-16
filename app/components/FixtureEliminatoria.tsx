@@ -1,39 +1,71 @@
 "use client";
 
-export default function FixtureEliminatoria() {
-  return (
-    <div className="space-y-4 flex-1 flex flex-col w-full">
-      {/* Contenedor del Bracket en Poppins */}
-      <div className="w-full bg-white border border-[#10204c]/5 rounded-3xl p-4 shadow-[0_4px_20px_rgba(16,32,76,0.02)] flex-1 flex flex-col justify-center font-poppins">
+interface FixtureEliminatoriaProps {
+  genero?: "masculino" | "femenino";
+}
 
-        {/* Encabezados de las Rondas */}
-        <div className="grid grid-cols-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#10204c]/40 border-b border-gray-50 pb-2 mb-4 font-poppins">
+export default function FixtureEliminatoria({ genero = "masculino" }: FixtureEliminatoriaProps) {
+  const esFemenino = genero === "femenino";
+
+  const equipos = esFemenino 
+    ? { semi1_1: "Atenas FC", semi1_2: "Esparta Fem", semi2_1: "Valquirias", semi2_2: "Amazonas", final_1: "Atenas FC", final_2: "Valquirias" }
+    : { semi1_1: "Equipo Alpha", semi1_2: "Equipo Beta", semi2_1: "Equipo Éxodo", semi2_2: "Equipo Omega", final_1: "Alpha", final_2: "Omega" };
+
+  return (
+    <div className="space-y-4 flex-1 flex flex-col w-full" data-theme={genero}>
+      {/* Contenedor Principal: Ahora más ancho y espacioso en escritorio */}
+      <div 
+        className="w-full max-w-2xl md:max-w-4xl mx-auto rounded-3xl p-6 md:p-12 shadow-[0_4px_20px_rgba(16,32,76,0.02)] flex-1 flex flex-col justify-center font-poppins"
+        style={{ 
+          backgroundColor: "var(--card-strong)", 
+          border: "1px solid var(--border)" 
+        }}
+      >
+        {/* Encabezados de las Rondas (Textos más grandes en md:) */}
+        <div 
+          className="grid grid-cols-2 text-center text-sm md:text-lg font-light tracking-wide pb-2 mb-6 md:mb-10"
+          style={{ 
+            color: "var(--foreground)", 
+            opacity: 0.6, 
+            borderBottom: "1px solid var(--border)" 
+          }}
+        >
           <div>Semifinales</div>
           <div>Gran Final</div>
         </div>
 
-        {/* El Árbol Gráfico */}
-        <div className="grid grid-cols-2 gap-x-3 items-center relative flex-1 py-4 font-poppins">
+        {/* El Árbol Gráfico: Mayor separación en md: */}
+        <div className="grid grid-cols-2 gap-x-8 md:gap-x-20 items-center relative flex-1 py-2">
 
           {/* COLUMNA 1: SEMIFINALES */}
-          <div className="space-y-8 relative z-10 flex flex-col justify-around h-full">
+          <div className="space-y-6 md:space-y-16 relative z-10 flex flex-col justify-center h-full">
+            
             {/* Semifinal 1 */}
-            <div className="relative group">
-              <div className="absolute -right-3 top-1/2 w-3.5 h-[1px] bg-[#10204c]/10" />
-              <div className="absolute -right-3 top-1/2 h-[54px] w-[1px] bg-[#10204c]/10" />
+            <div className="relative w-full max-w-[200px] md:max-w-[280px] mx-auto">
+              {/* Conector horizontal y vertical adaptados a escritorio */}
+              <div className="absolute -right-4 md:-right-10 top-1/2 w-4 md:w-10 h-[1px]" style={{ backgroundColor: "var(--border)" }} />
+              <div className="absolute -right-4 md:-right-10 top-1/2 h-[56px] md:h-[95px] w-[1px]" style={{ backgroundColor: "var(--border)" }} />
 
-              <div className="bg-[#10204c]/[0.03] border border-[#10204c]/10 rounded-xl overflow-hidden shadow-sm">
-                <div className="text-[9px] font-semibold text-[#10204c]/40 px-2.5 py-1 bg-[#10204c]/[0.02] border-b border-[#10204c]/5 flex justify-between">
+              <div className="rounded-xl overflow-hidden shadow-sm" style={{ backgroundColor: "rgba(16, 32, 76, 0.03)", border: "1px solid var(--border)" }}>
+                <div 
+                  className="text-[9px] md:text-[12px] font-light px-2.5 py-1 md:py-2 flex justify-between"
+                  style={{ 
+                    color: "var(--foreground)", 
+                    opacity: 0.6, 
+                    borderBottom: "1px solid var(--border)",
+                    backgroundColor: "rgba(16, 32, 76, 0.01)" 
+                  }}
+                >
                   <span>Sáb, 18/7</span>
-                  <span className="font-bold text-emerald-600">Fin</span>
+                  <span className="font-semibold" style={{ color: "var(--success)" }}>Fin</span>
                 </div>
-                <div className="p-2 space-y-1.5 text-xs font-bold text-[#10204c]/90">
-                  <div className="flex justify-between items-center">
-                    <span className="truncate">Equipo Alpha</span>
-                    <span className="text-[#233c97] font-black">3</span>
+                <div className="p-2.5 md:p-4 space-y-1.5 text-xs md:text-base font-normal" style={{ color: "var(--foreground)" }}>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="truncate font-semibold">{equipos.semi1_1}</span>
+                    <span className="font-bold" style={{ color: "var(--primary)" }}>3</span>
                   </div>
-                  <div className="flex justify-between items-center font-medium text-[#10204c]/40 border-t border-[#10204c]/5 pt-1">
-                    <span className="truncate">Equipo Beta</span>
+                  <div className="flex justify-between items-center font-light pt-1.5 md:pt-2.5" style={{ opacity: 0.6, borderTop: "1px solid var(--border)" }}>
+                    <span className="truncate">{equipos.semi1_2}</span>
                     <span>1</span>
                   </div>
                 </div>
@@ -41,23 +73,34 @@ export default function FixtureEliminatoria() {
             </div>
 
             {/* Semifinal 2 */}
-            <div className="relative group">
-              <div className="absolute -right-3 top-1/2 w-3.5 h-[1px] bg-[#10204c]/10" />
-              <div className="absolute -right-3 top-1/2 bottom-1/2 h-[54px] -translate-y-full w-[1px] bg-[#10204c]/10" />
+            <div className="relative w-full max-w-[200px] md:max-w-[280px] mx-auto">
+              {/* Conector horizontal y vertical adaptados a escritorio */}
+              <div className="absolute -right-4 md:-right-10 top-1/2 w-4 md:w-10 h-[1px]" style={{ backgroundColor: "var(--border)" }} />
+              <div className="absolute -right-4 md:-right-10 top-1/2 bottom-1/2 h-[56px] md:h-[95px] -translate-y-full w-[1px]" style={{ backgroundColor: "var(--border)" }} />
 
-              <div className="bg-[#10204c]/[0.03] border border-[#10204c]/10 rounded-xl overflow-hidden shadow-sm">
-                <div className="text-[9px] font-semibold text-[#10204c]/40 px-2.5 py-1 bg-[#10204c]/[0.02] border-b border-[#10204c]/5 flex justify-between">
-                  <span>Sáb, 19/3</span>
-                  <span className="font-bold text-emerald-600">Fin</span>
+              <div className="rounded-xl overflow-hidden shadow-sm" style={{ backgroundColor: "rgba(16, 32, 76, 0.03)", border: "1px solid var(--border)" }}>
+                <div 
+                  className="text-[9px] md:text-[12px] font-light px-2.5 py-1 md:py-2 flex justify-between"
+                  style={{ 
+                    color: "var(--foreground)", 
+                    opacity: 0.6, 
+                    borderBottom: "1px solid var(--border)",
+                    backgroundColor: "rgba(16, 32, 76, 0.01)" 
+                  }}
+                >
+                  <span>Sáb, 19/7</span>
+                  <span className="font-semibold" style={{ color: "var(--success)" }}>Fin</span>
                 </div>
-                <div className="p-2 space-y-1.5 text-xs font-medium text-[#10204c]/40">
-                  <div className="flex justify-between items-center">
-                    <span className="truncate">Equipo Éxodo</span>
-                    <span>2 <span className="text-[10px] text-[#10204c]/30">(3)</span></span>
+                <div className="p-2.5 md:p-4 space-y-1.5 text-xs md:text-base font-light" style={{ color: "var(--foreground)" }}>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="truncate">{equipos.semi2_1}</span>
+                    <span className="whitespace-nowrap">2 <span className="text-[9px] md:text-[11px]" style={{ opacity: 0.5 }}>(3)</span></span>
                   </div>
-                  <div className="flex justify-between items-center font-bold text-[#10204c]/90 border-t border-[#10204c]/5 pt-1">
-                    <span className="truncate">Equipo Omega</span>
-                    <span className="text-[#233c97] font-black">2 <span className="text-[10px] text-[#233c97]/60">(4)</span></span>
+                  <div className="flex justify-between items-center font-semibold pt-1.5 md:pt-2.5" style={{ borderTop: "1px solid var(--border)" }}>
+                    <span className="truncate">{equipos.semi2_2}</span>
+                    <span className="font-bold whitespace-nowrap" style={{ color: "var(--primary)" }}>
+                      2 <span className="text-[9px] md:text-[11px]" style={{ opacity: 0.6 }}>(4)</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -65,22 +108,43 @@ export default function FixtureEliminatoria() {
           </div>
 
           {/* COLUMNA 2: GRAN FINAL */}
-          <div className="relative z-10 flex flex-col justify-center h-full pl-0.5">
-            <div className="absolute -left-[11px] top-1/2 w-2.5 h-[1px] bg-[#10204c]/10" />
+          <div className="relative z-10 flex flex-col justify-center h-full">
+            <div className="relative w-full max-w-[200px] md:max-w-[280px] mx-auto">
+              {/* Conector horizontal izquierdo adaptado a escritorio */}
+              <div className="absolute -left-4 md:-left-10 top-1/2 w-4 md:w-10 h-[1px]" style={{ backgroundColor: "var(--border)" }} />
 
-            <div className="bg-gradient-to-br from-amber-500/[0.02] to-amber-500/[0.06] border-2 border-[#f7c600]/30 rounded-2xl overflow-hidden shadow-md relative">
-              <div className="text-[9px] font-bold text-amber-600 px-2.5 py-1 bg-[#f7c600]/10 border-b border-[#f7c600]/10 flex justify-between items-center">
-                <span>Próximamente</span>
-                <span className="bg-[#f7c600] text-[#10204c] px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">Hoy</span>
-              </div>
-              <div className="p-3.5 space-y-2 text-xs font-extrabold text-[#10204c]">
-                <div className="flex justify-between items-center gap-1">
-                  <span className="truncate flex items-center gap-1">🏆 Equipo Alpha</span>
-                  <span className="text-gray-300 font-normal">—</span>
+              <div 
+                className="border-2 rounded-2xl overflow-hidden shadow-md" 
+                style={{ 
+                  background: "linear-gradient(to bottom right, color-mix(in srgb, var(--accent) 2%, transparent), color-mix(in srgb, var(--primary) 6%, transparent))",
+                  borderColor: "var(--accent)"
+                }}
+              >
+                <div 
+                  className="text-[9px] md:text-[12px] font-semibold px-2.5 py-1 md:py-2 flex justify-between items-center"
+                  style={{ 
+                    color: "var(--primary)", 
+                    backgroundColor: "color-mix(in srgb, var(--primary) 8%, transparent)",
+                    borderBottom: "1px solid var(--accent)"
+                  }}
+                >
+                  <span>Próximamente</span>
+                  <span 
+                    className="px-1.5 py-0.5 rounded text-[8px] md:text-[10px] font-bold"
+                    style={{ backgroundColor: "var(--accent)", color: "var(--card-strong)" }}
+                  >
+                    Hoy
+                  </span>
                 </div>
-                <div className="flex justify-between items-center gap-1 border-t border-gray-100 pt-2">
-                  <span className="truncate flex items-center gap-1">🏆 Equipo Omega</span>
-                  <span className="text-gray-300 font-normal">—</span>
+                <div className="p-3 md:p-5 space-y-2 text-xs md:text-base font-normal" style={{ color: "var(--foreground)" }}>
+                  <div className="flex justify-between items-center gap-1.5">
+                    <span className="truncate flex items-center gap-1.5 font-semibold">🏆 {equipos.final_1}</span>
+                    <span className="font-normal" style={{ opacity: 0.3 }}>—</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-1.5 pt-2 md:pt-3.5" style={{ borderTop: "1px solid var(--border)" }}>
+                    <span className="truncate flex items-center gap-1.5 font-semibold">🏆 {equipos.final_2}</span>
+                    <span className="font-normal" style={{ opacity: 0.3 }}>—</span>
+                  </div>
                 </div>
               </div>
             </div>
