@@ -21,7 +21,7 @@ type Player = { id: number; name: string; number: number | null; photo_url: stri
 type Assignment = { id: number; day: string; field_number: number; supervisor_name: string; referee_name: string };
 type StatsResp = { goleadores: Array<{ player: string; team: string; goles: number }> };
 
-type Section = "equipos" | "jugadores" | "asistencia" | "staff" | "sorteo" | "fixture";
+type Section = "equipos" | "jugadores" | "asistencia" | "staff" | "sorteo" | "fixture" | "final";
 
 export default function AdminPage() {
   const [auth, setAuth] = useState<"checking" | "authed" | "denied">("checking");
@@ -72,6 +72,7 @@ export default function AdminPage() {
     { id: "staff", label: "Staff" },
     { id: "sorteo", label: "Sorteo" },
     { id: "fixture", label: "Fixture" },
+    { id: "final", label: "Fase Final" },
   ];
 
   return (
@@ -113,6 +114,7 @@ export default function AdminPage() {
         {section === "staff" && <StaffSection onFlash={setFlash} />}
         {section === "sorteo" && <DrawSection onFlash={setFlash} />}
         {section === "fixture" && <FixtureSection onFlash={setFlash} />}
+        {section === "final" && <FinalPhaseSection onFlash={setFlash} />}
       </main>
     </div>
   );
@@ -689,6 +691,66 @@ function FixtureSection({ onFlash }: FlashProp) {
         <TextInput type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
       </div>
       <PrimaryBtn onClick={run} disabled={busy}>{busy ? "Generando..." : "📅 Generar fixture"}</PrimaryBtn>
+    </Card>
+  );
+}
+
+// ─── FASE FINAL (semifinales + final por categoría) ─────────
+function FinalPhaseSection({ onFlash }: FlashProp) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function gen(stage: "SEMIFINAL" | "FINAL", category: "MASCULINO" | "FEMENINO", label: string) {
+    if (!window.confirm(`¿Generar ${label}?`)) return;
+    setBusy(`${stage}-${category}`);
+    try {
+      const r = await api<{ created: number }>("/api/brackets/generate", {
+        method: "POST",
+        body: JSON.stringify({ stage, category }),
+      });
+      onFlash({ tone: "ok", msg: `${label}: ${r.created} partido(s) creado(s).` });
+    } catch (err) {
+      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function block(category: "MASCULINO" | "FEMENINO", title: string) {
+    const semiKey = `SEMIFINAL-${category}`;
+    const finalKey = `FINAL-${category}`;
+    return (
+      <div className="rounded-2xl border border-[#c9d1f0] bg-white p-4 space-y-2">
+        <p className="text-sm font-bold text-[#233c97]">{title}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => gen("SEMIFINAL", category, `Semifinales ${title}`)}
+            className="h-11 rounded-xl bg-[#233c97] text-sm font-bold text-white disabled:opacity-50"
+          >
+            {busy === semiKey ? "..." : "Semifinales"}
+          </button>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => gen("FINAL", category, `Final ${title}`)}
+            className="h-11 rounded-xl bg-[#F7C600] text-sm font-bold text-[#10204c] disabled:opacity-50"
+          >
+            {busy === finalKey ? "..." : "Final"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card title="Fase Final">
+      <div className="rounded-2xl bg-[#eef3ff] p-3 text-sm text-slate-600 space-y-1">
+        <p><strong>Orden:</strong> primero <strong>Semifinales</strong> (cuando TODOS los partidos de grupos de esa categoría estén finalizados), y después la <strong>Final</strong> (cuando ambas semifinales tengan ganador).</p>
+        <p className="text-xs text-slate-500">Masculino: SF1 = 1°A vs mejor 2° · SF2 = 1°B vs 1°C. Femenino: SF1 = 1° vs 4° · SF2 = 2° vs 3°.</p>
+      </div>
+      {block("MASCULINO", "Masculino")}
+      {block("FEMENINO", "Femenino")}
     </Card>
   );
 }
