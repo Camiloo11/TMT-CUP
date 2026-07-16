@@ -8,6 +8,13 @@ import { teamAvatar } from "@/lib/team-emoji";
 // ==========================================
 export type MatchStatus = "upcoming" | "live" | "finished";
 
+export type MatchEventSummary = {
+  kind: string; // goal | yellow | red
+  team: "home" | "away";
+  playerName: string;
+  minute: number;
+};
+
 export type MatchCard = {
   id: string;
   time: string;
@@ -16,6 +23,10 @@ export type MatchCard = {
   awayTeam: string;
   status: MatchStatus;
   readyNow?: boolean;
+  // Datos reales del partido finalizado (marcador y línea de tiempo)
+  homeScore?: number | null;
+  awayScore?: number | null;
+  events?: MatchEventSummary[];
 };
 
 type MatchCardProps = {
@@ -35,7 +46,7 @@ export default function MatchCardContainer({ match, onAction }: MatchCardProps) 
     return <FinishedMatchCard match={match} />;
   }
 
-  return <UpcomingMatchCard match={match} />;
+  return <UpcomingMatchCard match={match} onAction={onAction} />;
 }
 
 // ==========================================
@@ -108,17 +119,12 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
 function FinishedMatchCard({ match }: MatchCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Datos REALES del partido (marcador y eventos vienen del backend)
   const mockMatch = {
     ...match,
-    homeScore: 2,
-    awayScore: 1,
-    events: [
-      { kind: "goal", team: "home", playerName: "Carlos Mendoza", minute: 14 },
-      { kind: "yellow", team: "home", playerName: "Marcos Roca", minute: 30 },
-      { kind: "goal", team: "away", playerName: "Luis Andrés", minute: 42 },
-      { kind: "goal", team: "home", playerName: "Andrés Villa", minute: 78 },
-      { kind: "red", team: "away", playerName: "Juan Castro", minute: 85 }
-    ]
+    homeScore: match.homeScore ?? 0,
+    awayScore: match.awayScore ?? 0,
+    events: match.events ?? [],
   };
 
   const renderIconoEvento = (kind: string) => {
@@ -203,14 +209,14 @@ function FinishedMatchCard({ match }: MatchCardProps) {
               <div className="text-left pl-1 min-h-[16px]">
                 {evento.team === "home" && (
                   <span className="font-medium text-[var(--foreground)]">
-                    {renderIconoEvento(evento.kind)} {evento.playerName} ({evento.minute}')
+                    {renderIconoEvento(evento.kind)} {evento.playerName} ({evento.minute}&apos;)
                   </span>
                 )}
               </div>
               <div className="text-right pr-1 min-h-[16px]">
                 {evento.team === "away" && (
                   <span className="font-medium text-[var(--foreground)]">
-                    {evento.playerName} ({evento.minute}') {renderIconoEvento(evento.kind)}
+                    {evento.playerName} ({evento.minute}&apos;) {renderIconoEvento(evento.kind)}
                   </span>
                 )}
               </div>
@@ -225,7 +231,7 @@ function FinishedMatchCard({ match }: MatchCardProps) {
 // ==========================================
 // SUBCOMPONENTE 3: PARTIDO PRÓXIMO (NUEVO ESTILO AMARILLO/DORADO)
 // ==========================================
-function UpcomingMatchCard({ match }: MatchCardProps) {
+function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
   return (
     <div className="w-full bg-[var(--card-strong)] border border-[var(--border)] hover:border-amber-300 rounded-3xl p-5 shadow-[0_4px_20px_rgba(16,32,76,0.02)] hover:shadow-[0_8px_24px_rgba(217,119,6,0.05)] transition-all duration-300 group">
       
@@ -268,6 +274,17 @@ function UpcomingMatchCard({ match }: MatchCardProps) {
           </div>
         </div>
       </div>
+
+      {/* CTA: solo el SIGUIENTE partido de la cancha puede iniciar su espera */}
+      {onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 w-full rounded-full bg-[#233c97] hover:bg-[#1a2e7a] text-white text-xs font-bold py-3 shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
+        >
+          Iniciar espera de equipos (6 min)
+        </button>
+      )}
     </div>
   );
 }

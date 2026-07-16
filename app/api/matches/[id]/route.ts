@@ -61,12 +61,13 @@ export async function GET(
     const mark = (players: PlayerRow[]) =>
       players.map((p) => ({ ...p, suspended: suspended.has(p.id) }));
 
-    // Supervisor y árbitro asignados a esta cancha hoy
+    // Supervisor y árbitro asignados a esta cancha hoy (día de Bogotá,
+    // no UTC: después de las 7 PM el día UTC ya es "mañana")
     const { data: assignment } = await supabase
       .from("pitch_assignments")
       .select("*")
       .eq("field_number", match.field_number)
-      .eq("day", new Date().toISOString().slice(0, 10))
+      .eq("day", new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }))
       .maybeSingle();
 
     return Response.json({
