@@ -8,7 +8,7 @@ import ControlAlertPopup from './components/ControlAlertPopup'
 
 type View = "dashboard" | "waiting" | "live" | "summary";
 type MatchStatus = "upcoming" | "live" | "finished";
-type Filter = "upcoming" | "finished"; // Ahora solo filtramos por próximos y finalizados
+type Filter = "upcoming" | "finished";
 type TeamSide = "home" | "away";
 type EventKind = "goal" | "yellow" | "red";
 type SupervisorName = "Ana Beltrán" | "Mario Silva" | "Sofía Ramos" | "Diego Costa";
@@ -80,7 +80,7 @@ const awayPlayers: Player[] = [
   { id: "a8", name: "Oliver Núñez" },
 ];
 
-const matchDuration = 26 * 60;
+const matchDuration = 0.1 * 60; // 1 minuto para pruebas rápidas
 const waitingDuration = 6 * 60;
 
 function createEmptyEvents() {
@@ -178,7 +178,7 @@ export default function SupervisorPage() {
   const [view, setView] = useState<View>("dashboard");
   const [supervisor] = useState<SupervisorName>("Ana Beltrán");
   const [activeFilter, setActiveFilter] = useState<Filter>("upcoming");
-  const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[2]); // Default al partido "live" (m3)
+  const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[2]);
   const [waitingSeconds, setWaitingSeconds] = useState(waitingDuration);
   const [presence, setPresence] = useState(createEmptyPresence);
   const [liveSeconds, setLiveSeconds] = useState(matchDuration);
@@ -191,7 +191,7 @@ export default function SupervisorPage() {
   const [incidentDraft, setIncidentDraft] = useState("");
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [report, setReport] = useState<Report | null>(null);
-  const [locked, setLocked] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const score = countGoals(eventsByTeam);
 
@@ -217,11 +217,9 @@ export default function SupervisorPage() {
     return () => window.clearInterval(timer);
   }, [view, paused, liveSeconds]);
 
-  // Se extrae el único partido en vivo (si existe) para fijarlo arriba
   const liveMatch = matches.find((m) => m.status === "live");
-
-  // Se extrae solo el primer partido que cumpla el estado filtrado actual (Caja única)
-  const filteredMatch = matches.find((m) => m.status === activeFilter);
+  const upcomingMatch = matches.find((m) => m.status === "upcoming");
+  const finishedMatch = matches.find((m) => m.status === "finished");
 
   const presenceCount = Number(presence.home) + Number(presence.away);
   const warningText =
@@ -240,7 +238,6 @@ export default function SupervisorPage() {
           : "Equipos en cancha"
       : "Equipos en cancha";
 
-  // Función de edición restringida únicamente a partidos en vivo
   function beginMatchLifecycle(match: MatchCard) {
     if (match.status !== "live") {
       alert("Solo se puede ingresar a la mesa de control de partidos en vivo.");
@@ -259,12 +256,35 @@ export default function SupervisorPage() {
     setIncidentDraft("");
     setIncidents([]);
     setReport(null);
-    setLocked(false);
+    setShowSuccessPopup(false);
     setView("waiting");
   }
 
   function togglePresence(team: TeamSide) {
     setPresence((current) => ({ ...current, [team]: !current[team] }));
+  }
+
+  function triggerManualFinish() {
+    setReport(
+      buildReport({
+        match: selectedMatch,
+        score,
+        events: eventsByTeam,
+        incidents,
+      })
+    );
+    setView("summary");
+  }
+
+  function handleSaveAndSend() {
+    // Activa la visualización del popup de confirmación de éxito
+    setShowSuccessPopup(true);
+  }
+
+  function handleReturnToDashboard() {
+    // Restablece la vista y cierra el popup
+    setShowSuccessPopup(false);
+    setView("dashboard");
   }
 
   function registerEvent(team: TeamSide, playerId: string, kind: EventKind) {
@@ -323,21 +343,31 @@ export default function SupervisorPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
+      <style jsx global>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       <main className="flex-1 px-4 py-5 text-[15px] text-slate-800 sm:px-6 sm:py-6 md:px-8">
         <div className="mx-auto flex w-full flex-col gap-5 sm:gap-6">
 
           {/* VISTA DEL DASHBOARD / PANEL PRINCIPAL */}
           {view === "dashboard" && (
             <section className="flex flex-1 flex-col gap-6 w-full">
-
-              {/* ENCABEZADO FIJO: EL MARGEN NEGATIVO IGUALA EXACTAMENTE EL PADDING DEL <main> EN CADA BREAKPOINT */}
               <header className="sticky top-0 z-50 -mx-4 -mt-5 w-[calc(100%+2rem)] rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins sm:-mx-6 sm:-mt-6 sm:w-[calc(100%+3rem)] md:-mx-8 md:w-[calc(100%+4rem)]">
                 <div className="mx-auto w-full px-4 pt-5 pb-4 flex flex-col gap-4 sm:gap-5 sm:px-6 md:px-8">
-
-                  {/* FILA SUPERIOR: LOGO -> BLOQUE CANCHA GIGANTE -> PERSONAL */}
                   <div className="flex items-center justify-between w-full gap-1">
-
-                    {/* 1. LOGO LIBRE (AJUSTADO A LA IZQUIERDA) */}
                     <div className="flex flex-1 min-w-0 items-center justify-start">
                       <NextImage
                         src="/assets/Logo_tMtCup.svg"
@@ -348,8 +378,6 @@ export default function SupervisorPage() {
                         priority
                       />
                     </div>
-
-                    {/* 2. INDICADOR GEOMÉTRICO CENTRAL (NÚMERO ARRIBA, TEXTO ABAJO) */}
                     <div className="flex shrink-0 flex-col items-center justify-center font-poppins px-1">
                       <div className="mb-1 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#10204c] shadow-xl sm:mb-1.5 sm:h-20 sm:w-20">
                         <span className="font-secondary-modak mt-1 text-4xl leading-none text-white sm:text-5xl">
@@ -360,8 +388,6 @@ export default function SupervisorPage() {
                         Cancha
                       </span>
                     </div>
-
-                    {/* 3. INFORMACIÓN DEL PERSONAL (AJUSTADO A LA DERECHA) */}
                     <div className="flex flex-1 min-w-0 flex-col items-end justify-center pl-1 text-right sm:pl-2">
                       <span className="mb-0.5 truncate text-[10px] font-bold leading-none text-[#233c97]/50">
                         Supervisor
@@ -373,32 +399,26 @@ export default function SupervisorPage() {
                         <span className="font-bold text-[#233c97]/70">Árb:</span> Carlos Gómez
                       </p>
                     </div>
-
                   </div>
-
-                  {/* LÍNEA DIVISORIA SUTIL DENTRO DEL HEADER */}
                   <div className="w-full h-[1px] bg-[#10204c]/5" />
-
-                  {/* FILA INFERIOR: BARRA DE NAVEGACIÓN SEGMENTADA INTEGRADA */}
                   <div className="w-full flex justify-center">
                     <nav className="w-full max-w-[210px] flex p-1 bg-[#10204c]/[0.05] rounded-full shadow-[inset_0_2px_4px_rgba(16,32,76,0.04)] border border-[#10204c]/[0.01] items-center px-1">
                       {["Próximos", "Finalizados"].map((tabLabel) => {
                         const tabValue = tabLabel === "Próximos" ? "upcoming" : "finished";
                         const isActive = activeFilter === tabValue;
-
                         return (
                           <button
                             key={tabLabel}
                             type="button"
                             onClick={() => setActiveFilter(tabValue)}
                             className={`
-                    flex-1 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 select-none outline-none text-center whitespace-nowrap
-                    ${isActive
+                              flex-1 py-1.5 text-[11px] font-bold rounded-full transition-all duration-200 select-none outline-none text-center whitespace-nowrap
+                              ${isActive
                                 ? "bg-white text-[#233c97] shadow-[0_3px_8px_rgba(16,32,76,0.08)] border border-white font-extrabold scale-[1.01]"
                                 : "text-[#10204c]/50 hover:text-[#10204c]/80"
                               }
-                    active:scale-[0.97] transition-transform
-                  `}
+                              active:scale-[0.97] transition-transform
+                            `}
                           >
                             {tabLabel}
                           </button>
@@ -406,40 +426,57 @@ export default function SupervisorPage() {
                       })}
                     </nav>
                   </div>
-
                 </div>
               </header>
 
-              {/* CONTENEDOR DE PARTIDOS */}
-              <div className="flex-1 space-y-4 overflow-y-auto pb-6">
-                {liveMatch ? (
-                  <MatchCardContainer
-                    match={liveMatch}
-                    onAction={() => beginMatchLifecycle(liveMatch)}
-                  />
-                ) : (
-                  <div className="p-4 text-center rounded-2xl bg-[var(--background)]/50 text-[var(--foreground)]/40 italic text-xs border border-dashed border-[var(--border)] mb-6">
-                    No hay ningún partido en vivo en juego en este momento.
-                  </div>
-                )}
+              {liveMatch ? (
+                <MatchCardContainer
+                  match={liveMatch}
+                  onAction={() => beginMatchLifecycle(liveMatch)}
+                />
+              ) : (
+                <div className="p-4 text-center rounded-2xl bg-[var(--background)]/50 text-[var(--foreground)]/40 italic text-xs border border-dashed border-[var(--border)]">
+                  No hay ningún partido en vivo en juego en este momento.
+                </div>
+              )}
 
-                {filteredMatch ? (
-                  <MatchCardContainer match={filteredMatch} />
-                ) : (
-                  <div className="p-4 text-center rounded-2xl bg-[var(--background)]/50 text-[var(--foreground)]/40 italic text-xs border border-dashed border-[var(--border)]">
-                    No hay partidos para mostrar en este filtro.
+              <div className="flex-1 overflow-hidden relative pb-6">
+                <div 
+                  className="flex w-[200%] transition-transform duration-500 ease-in-out"
+                  style={{
+                    transform: activeFilter === "upcoming" ? "translateX(0%)" : "translateX(-50%)"
+                  }}
+                >
+                  <div className="w-1/2 pr-2 shrink-0">
+                    <div className="space-y-4">
+                      {upcomingMatch ? (
+                        <MatchCardContainer match={upcomingMatch} />
+                      ) : (
+                        <div className="p-4 text-center rounded-2xl bg-[var(--background)]/50 text-[var(--foreground)]/40 italic text-xs border border-dashed border-[var(--border)]">
+                          No hay partidos próximos para mostrar.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                  <div className="w-1/2 pl-2 shrink-0">
+                    <div className="space-y-4">
+                      {finishedMatch ? (
+                        <MatchCardContainer match={finishedMatch} />
+                      ) : (
+                        <div className="p-4 text-center rounded-2xl bg-[var(--background)]/50 text-[var(--foreground)]/40 italic text-xs border border-dashed border-[var(--border)]">
+                          No hay partidos finalizados para mostrar.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-
             </section>
           )}
 
           {/* VISTA MODO DE ESPERA */}
           {view === "waiting" && (
             <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-1 overflow-hidden">
-
-              {/* 0. MARCA DE AGUA: LOGO COMPLETO ORIGINAL */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 select-none">
                 <NextImage
                   src="/assets/Logo_tMtCup.svg"
@@ -451,7 +488,6 @@ export default function SupervisorPage() {
                 />
               </div>
 
-              {/* CONTENEDOR DEL CRONÓMETRO */}
               <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-4 shadow-[0_12px_35px_rgba(16,32,76,0.12)] text-center relative overflow-hidden sm:p-6">
                 <div className="flex items-center justify-between w-full mb-3 gap-2">
                   <div className="bg-[#10204c] text-white text-[11px] font-weight px-3 py-1 rounded-full shadow-xs tracking-wide whitespace-nowrap sm:text-[12px]">
@@ -461,7 +497,6 @@ export default function SupervisorPage() {
                     {selectedMatch.phase}
                   </span>
                 </div>
-
                 <div className="py-2">
                   <div className="font-secondary-modak text-6xl text-[#10204c] tracking-tight leading-none drop-shadow-[0_2px_12px_rgba(16,32,76,0.06)] min-[375px]:text-7xl min-[425px]:text-8xl">
                     {formatClock(waitingSeconds)}
@@ -469,7 +504,6 @@ export default function SupervisorPage() {
                 </div>
               </div>
 
-              {/* CONTROL DE ASISTENCIA: TARJETAS CON NUEVOS BOTONES ESTILIZADOS */}
               <div className="z-10 grid grid-cols-2 gap-4">
                 {([
                   { key: "home", label: selectedMatch.homeTeam },
@@ -484,7 +518,6 @@ export default function SupervisorPage() {
                 ))}
               </div>
 
-              {/* POP-UP DE ALERTAS TEMPORIZADO CON IDENTIFICADOR DE SANCIÓN */}
               {warningText.text && (
                 <ControlAlertPopup
                   text={warningText.text}
@@ -496,7 +529,6 @@ export default function SupervisorPage() {
                 />
               )}
 
-              {/* BOTÓN DE ACCIÓN PRINCIPAL (CON ESPACIADO INFERIOR PARA EVITAR SOMBRA CORTADA) */}
               <div className="mt-auto z-10 w-full flex justify-center px-1 py-4">
                 <button
                   type="button"
@@ -509,15 +541,12 @@ export default function SupervisorPage() {
                   {waitingActionLabel}
                 </button>
               </div>
-
             </section>
           )}
 
-          {/* VISTA PARTIDO EN VIVO - DISEÑO COMPLETO */}
+          {/* VISTA PARTIDO EN VIVO */}
           {view === "live" && (
-            <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-2 py-4">
-
-              {/* MARCA DE AGUA */}
+            <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-2 py-4 pb-24">
               <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 select-none">
                 <NextImage
                   src="/assets/Logo_tMtCup.svg"
@@ -529,7 +558,6 @@ export default function SupervisorPage() {
                 />
               </div>
 
-              {/* ENCABEZADO PRINCIPAL */}
               <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-4 shadow-[0_12px_35px_rgba(16,32,76,0.15)] relative sm:p-6">
                 <div className="flex items-center justify-between w-full mb-4 gap-2">
                   <div className="bg-[#10204c] text-white text-[10px] font-medium px-3 py-1 rounded-full tracking-wider truncate">
@@ -557,32 +585,25 @@ export default function SupervisorPage() {
                   </button>
                 </div>
 
-                {/* MARCADOR AJUSTADO (MÁS GRANDE Y CON LOGOS A LOS LADOS) */}
                 <div className="border-t border-[#10204c]/10 pt-5 flex justify-center items-center gap-3 sm:gap-6">
-                  {/* Logo Equipo Local */}
                   <div className="w-10 h-10 rounded-full bg-white/60 border border-[#10204c]/15 shadow-sm flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
                     <span className="text-xs text-[#10204c]/65 font-bold">L</span>
                   </div>
 
-                  {/* Marcador Gigante */}
                   <div className="font-secondary-modak text-5xl text-[#10204c] tracking-[0.05em] select-none min-w-[92px] text-center min-[375px]:text-6xl min-[375px]:min-w-[112px] sm:text-7xl sm:min-w-[140px]">
                     {score.home} - {score.away}
                   </div>
 
-                  {/* Logo Equipo Visitante */}
                   <div className="w-10 h-10 rounded-full bg-white/60 border border-[#10204c]/15 shadow-sm flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
                     <span className="text-xs text-[#10204c]/65 font-bold">V</span>
                   </div>
                 </div>
               </div>
 
-              {/* PANELES DE EQUIPOS (ROSTER) */}
               <div className="z-10 grid gap-6 md:grid-cols-2 md:items-start">
                 {[{ title: selectedMatch.homeTeam, side: "home", players: homePlayers },
                 { title: selectedMatch.awayTeam, side: "away", players: awayPlayers }].map((team) => (
                   <div key={team.side} className="rounded-[1.6rem] border border-slate-200 bg-white/80 backdrop-blur-sm p-3.5 shadow-sm sm:p-5">
-
-                    {/* NOMBRE DE EQUIPO CENTRADO, MÁS GRANDE (text-2xl), DELGADO Y CON LOGO A LA IZQUIERDA */}
                     <div className="flex items-center justify-center gap-3 mb-5 w-full">
                       <div className="w-11 h-11 rounded-full bg-white border border-[#10204c]/10 flex items-center justify-center shadow-xs">
                         <span className="text-sm text-[#10204c]/50 font-black uppercase">{team.title[0]}</span>
@@ -608,7 +629,6 @@ export default function SupervisorPage() {
                               </button>
                             </div>
 
-                            {/* OPCIONES DE ACCIONES: SE ACOMODAN EN MÁS DE UNA FILA SI NO HAY ESPACIO (EVITA DESBORDE) */}
                             {isOpen && (
                               <div className="flex flex-wrap gap-1.5 mt-2 w-full justify-center items-center">
                                 {[
@@ -617,21 +637,14 @@ export default function SupervisorPage() {
                                   { icon: "🟥", type: "red" }
                                 ].map((act) => (
                                   <div key={act.type} className="flex items-center gap-1 px-1.5 py-1 rounded-full border border-slate-200 bg-slate-100 text-slate-700 shrink-0 sm:gap-1.5 sm:px-2">
-                                    {/* Botón Restar (-) */}
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        console.log(`Restar ${act.type} al jugador ${player.id}`);
-                                      }}
+                                      onClick={() => console.log(`Restar ${act.type} al jugador ${player.id}`)}
                                       className="w-5 h-5 rounded-full bg-white hover:bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-300/40 active:scale-90 transition-transform shrink-0 sm:w-6 sm:h-6 sm:text-sm"
                                     >
                                       <span className="leading-none mt-[-2px]">-</span>
                                     </button>
-
-                                    {/* Emoji */}
                                     <span className="text-[11px] select-none shrink-0 sm:text-xs">{act.icon}</span>
-
-                                    {/* Botón Sumar (+) */}
                                     <button
                                       type="button"
                                       onClick={() => registerEvent(team.side as TeamSide, player.id, act.type as EventKind)}
@@ -651,76 +664,125 @@ export default function SupervisorPage() {
                 ))}
               </div>
 
-              {/* BOTÓN FLOTANTE DE INCIDENTES REDISEÑADO */}
-              <button
-                type="button"
-                onClick={() => setIncidentOpen(true)}
-                className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-[0_8px_30px_rgba(248,54,54,0.4)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
-                aria-label="Reportar incidente"
-              >
-                <svg
-                  className="w-6 h-6 animate-pulse"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
+              {/* ÁREA DE BOTONES DE ACCIÓN INFERIORES FLOTANTES */}
+              <div className="fixed bottom-6 left-6 right-6 z-40 flex items-center justify-between gap-3">
+                <div className="flex-1 min-h-[56px] flex items-center">
+                  {liveSeconds === 0 && (
+                    <button
+                      type="button"
+                      onClick={triggerManualFinish}
+                      className="animate-slide-up w-full h-14 rounded-full bg-[#10204c] text-white font-bold text-sm shadow-[0_8px_30px_rgba(16,32,76,0.3)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
+                    >
+                      Finalizar encuentro
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIncidentOpen(true)}
+                  className="h-14 w-14 shrink-0 rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-[0_8px_30px_rgba(248,54,54,0.4)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
+                  aria-label="Reportar incidente"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-6 h-6 animate-pulse"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </button>
+              </div>
             </section>
           )}
 
           {/* VISTA RESUMEN DEL PARTIDO */}
           {view === "summary" && report && (
-            <section className="flex flex-1 flex-col gap-4">
-              <header className="rounded-[1.8rem] bg-[#10204c] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/70">Informe del partido</p>
-                <h2 className="mt-2 text-2xl font-semibold">Resumen y bloqueo</h2>
-                <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 backdrop-blur-md">
-                  <div className="text-center text-6xl font-bold leading-none text-white sm:text-7xl">{report.score}</div>
-                  <p className="mt-2 text-center text-sm text-white/80">{report.title}</p>
-                  <p className="text-center text-xs uppercase tracking-[0.24em] text-white/60">{report.subtitle}</p>
-                </div>
-              </header>
+            <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-1 overflow-hidden pb-10">
+              {/* MARCA DE AGUA */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 select-none">
+                <NextImage
+                  src="/assets/Logo_tMtCup.svg"
+                  alt="Fondo oficial TMT CUP"
+                  width={320}
+                  height={320}
+                  className="object-contain max-w-[80vw]"
+                  priority
+                />
+              </div>
 
-              <div className="space-y-3 overflow-y-auto pb-1">
+              {/* CABECERA CENTRADA CON ESTILO TARJETA ESPERA */}
+              <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-5 shadow-[0_12px_35px_rgba(16,32,76,0.12)] text-center relative overflow-hidden flex flex-col items-center justify-center">
+                <div className="flex items-center justify-center w-full mb-3 gap-2">
+                  <span className="text-[11px] font-weight tracking-wider text-[#10204c]/50 bg-[#10204c]/5 px-2.5 py-1 rounded-full truncate">
+                    {report.subtitle}
+                  </span>
+                </div>
+                
+                <div className="py-2 flex flex-col items-center justify-center">
+                  <div className="font-secondary-modak text-6xl text-[#10204c] tracking-tight leading-none drop-shadow-[0_2px_12px_rgba(16,32,76,0.06)] min-[375px]:text-7xl">
+                    {report.score}
+                  </div>
+                  <p className="mt-3 text-lg font-light tracking-wide text-[#10204c] sm:text-xl text-center">
+                    {report.title}
+                  </p>
+                </div>
+              </div>
+
+              {/* LISTADOS DE SUCESOS */}
+              <div className="z-10 space-y-4">
                 <SummarySection title="Goles">
                   {report.goals.length === 0 ? (
-                    <SummaryEmpty>No se registraron goles.</SummaryEmpty>
+                    <SummaryEmpty>No se registraron goles en el encuentro.</SummaryEmpty>
                   ) : (
-                    report.goals.map((goal, index) => <SummaryRow key={`${goal.label}-${index}`} primary={goal.label} secondary={goal.team} accent="Gol" />)
+                    report.goals.map((goal, index) => (
+                      <SummaryRow key={`${goal.label}-${index}`} primary={goal.label} secondary={goal.team} accent="⚽ Gol" />
+                    ))
                   )}
                 </SummarySection>
 
-                <SummarySection title="Tarjetas">
+                <SummarySection title="Sanciones / Tarjetas">
                   {report.cards.length === 0 ? (
-                    <SummaryEmpty>No se registraron tarjetas.</SummaryEmpty>
+                    <SummaryEmpty>Limpio de amonestaciones.</SummaryEmpty>
                   ) : (
-                    report.cards.map((card, index) => <SummaryRow key={`${card.label}-${index}`} primary={card.label} secondary={card.team} accent="Tarjeta" />)
+                    report.cards.map((card, index) => {
+                      const isRed = card.label.toLowerCase().includes("roja");
+                      return (
+                        <SummaryRow 
+                          key={`${card.label}-${index}`} 
+                          primary={card.label} 
+                          secondary={card.team} 
+                          accent={isRed ? "🟥 Expulsión" : "🟨 Amarilla"} 
+                        />
+                      );
+                    })
                   )}
                 </SummarySection>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setLocked(true)}
-                disabled={locked}
-                className="mt-auto min-h-16 w-full rounded-full bg-[#10204c] px-6 py-3 text-center text-sm font-semibold leading-tight text-white disabled:opacity-70 sm:text-base"
-              >
-                {locked ? "Bloqueado y enviado" : "Guardar y enviar a mesa de control"}
-              </button>
+              {/* ACCIÓN DE ENVÍO - BOTÓN AJUSTADO AL TEXTO */}
+              <div className="mt-auto z-10 w-full flex justify-center px-1 py-4">
+                <button
+                  type="button"
+                  onClick={handleSaveAndSend}
+                  className="w-auto h-[3.75rem] rounded-full px-10 text-base font-black text-white shadow-lg transition-all duration-200 active:scale-[0.98] border border-white/20 flex items-center justify-center gap-2 bg-[#E11D48] hover:bg-[#F43F5E] shadow-[#E11D48]/20"
+                >
+                  Guardar y enviar a mesa
+                </button>
+              </div>
             </section>
           )}
         </div>
 
         {/* MODAL DE INCIDENTES RÁPIDOS */}
         {incidentOpen && (
-          <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/45 px-4 py-4 backdrop-blur-sm sm:items-center">
+          <div className="fixed inset-0 z-45 flex items-end justify-center bg-slate-950/45 px-4 py-4 backdrop-blur-sm sm:items-center">
             <div className="w-full max-w-md rounded-[1.8rem] bg-white p-4 shadow-2xl sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-base font-medium text-[#10204c] sm:text-xl">Reportar incidente</h3>
@@ -746,85 +808,37 @@ export default function SupervisorPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
-  );
-}
 
-function RosterPanel({
-  title,
-  side,
-  players,
-  events,
-  openEventMenu,
-  onOpenEventMenu,
-  onRegisterEvent,
-}: {
-  title: string;
-  side: TeamSide;
-  players: Player[];
-  events: Record<string, LiveEvent[]>;
-  openEventMenu: { team: TeamSide; playerId: string } | null;
-  onOpenEventMenu: React.Dispatch<React.SetStateAction<{ team: TeamSide; playerId: string } | null>>;
-  onRegisterEvent: (team: TeamSide, playerId: string, kind: EventKind) => void;
-  undoTarget: { team: TeamSide; playerId: string; eventId: string } | null;
-}) {
-  return (
-    <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{side === "home" ? "Equipo local" : "Equipo visitante"}</p>
-          <h3 className="text-lg font-bold text-[#10204c]">{title}</h3>
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {players.map((player) => {
-          const sentOff = isPlayerSentOff(events, player.id);
-          const latestEvent = getLatestEvent(events, player.id);
-
-          return (
-            <div
-              key={player.id}
-              className={`rounded-[1.25rem] border px-3 py-3 flex flex-col gap-2 ${sentOff ? "border-slate-200 bg-slate-100 text-slate-400 opacity-60" : "border-slate-200 bg-white"}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-slate-900">{player.name}</span>
-                <button
-                  type="button"
-                  onClick={() => onOpenEventMenu({ team: side, playerId: player.id })}
-                  disabled={sentOff}
-                  className="h-10 w-10 rounded-full bg-[#10204c] text-white font-bold text-lg disabled:bg-slate-200"
-                >
-                  +
-                </button>
+        {/* POPUP DE CONFIRMACIÓN DE ENVÍO */}
+        {showSuccessPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl">
+                ✓
               </div>
-
-              {latestEvent && (
-                <div className="text-xs font-semibold text-slate-500">
-                  Último: {latestEvent.kind === "goal" ? "⚽" : latestEvent.kind === "yellow" ? "🟨" : "🟥"} ({latestEvent.minute}')
-                </div>
-              )}
-
-              {openEventMenu?.playerId === player.id && openEventMenu.team === side && (
-                <div className="grid grid-cols-3 gap-2 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <button type="button" onClick={() => onRegisterEvent(side, player.id, "goal")} className="bg-emerald-600 text-white rounded-full py-2 text-xs font-bold">⚽ Gol</button>
-                  <button type="button" onClick={() => onRegisterEvent(side, player.id, "yellow")} className="bg-amber-500 text-slate-900 rounded-full py-2 text-xs font-bold">🟨 Amarilla</button>
-                  <button type="button" onClick={() => onRegisterEvent(side, player.id, "red")} className="bg-red-600 text-white rounded-full py-2 text-xs font-bold">🟥 Roja</button>
-                </div>
-              )}
+              <div>
+                <h3 className="text-lg font-extrabold text-[#10204c]">¡Enviado con éxito!</h3>
+                <p className="text-xs text-slate-500 mt-1">Los datos del partido han sido registrados y enviados correctamente a la mesa principal.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleReturnToDashboard}
+                className="w-full h-12 rounded-full bg-[#10204c] text-white text-sm font-bold shadow-md hover:bg-[#1a2f6a] transition-all active:scale-[0.98]"
+              >
+                Volver al Panel Principal
+              </button>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
 
 function SummarySection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="text-xs font-bold uppercase tracking-[0.24em] text-[#10204c]">{title}</h3>
+    <div className="rounded-[1.6rem] border-2 border-white/40 bg-white/45 backdrop-blur-md p-4 shadow-[0_8px_24px_rgba(16,32,76,0.06)]">
+      <h3 className="text-xs font-bold text-[#10204c]">{title}</h3>
       <div className="mt-3 space-y-2">{children}</div>
     </div>
   );
@@ -832,54 +846,16 @@ function SummarySection({ title, children }: { title: string; children: React.Re
 
 function SummaryRow({ primary, secondary, accent }: { primary: string; secondary: string; accent: string }) {
   return (
-    <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl text-sm">
-      <div>
-        <p className="font-bold text-slate-800">{primary}</p>
-        <p className="text-xs text-slate-500">{secondary}</p>
+    <div className="flex items-center justify-between bg-white/70 p-3 rounded-xl border border-slate-100 shadow-xs text-sm">
+      <div className="flex-1 min-w-0 pr-2">
+        <p className="font-bold text-[#10204c] truncate">{primary}</p>
+        <p className="text-xs text-[#10204c]/65 truncate">{secondary}</p>
       </div>
-      <span className="text-xs font-bold bg-slate-200 px-3 py-1 rounded-full">{accent}</span>
+      <span className="text-xs font-bold text-[#10204c] bg-[#10204c]/5 px-3 py-1 rounded-full whitespace-nowrap shrink-0">{accent}</span>
     </div>
   );
 }
 
 function SummaryEmpty({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm text-slate-400 italic p-2">{children}</div>;
-}
-
-type MatchFilterTabsProps = {
-  activeFilter: Filter;
-  onFilterChange: (filter: Filter) => void;
-};
-
-// COMPONENTE DE LA BARRA DE NAVEGACIÓN (PRÓXIMOS Y FINALIZADOS)
-function MatchFilterTabs({ activeFilter, onFilterChange }: MatchFilterTabsProps) {
-  const tabs: { id: Filter; label: string }[] = [
-    { id: "upcoming", label: "Próximos" },
-    { id: "finished", label: "Finalizados" },
-  ];
-
-  return (
-    <nav className="flex p-1 bg-[#10204c]/[0.05] rounded-full shadow-[inset_0_2px_4px_rgba(16,32,76,0.06)] border border-[#10204c]/[0.01] items-center gap-1 font-poppins">
-      {tabs.map((tab) => {
-        const isActive = activeFilter === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onFilterChange(tab.id)}
-            className={`
-              flex-1 py-2 text-xs font-bold rounded-full transition-all duration-200 select-none outline-none text-center whitespace-nowrap px-1
-              ${isActive
-                ? "bg-white text-[#233c97] shadow-[0_3px_10px_rgba(16,32,76,0.12),_0_1px_2px_rgba(16,32,76,0.04)] border border-white font-extrabold scale-[1.02]"
-                : "text-[#10204c]/50 hover:text-[#10204c]/80"
-              }
-              active:scale-[0.96] transition-transform
-            `}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
+  return <div className="text-sm text-[#10204c]/50 italic p-2">{children}</div>;
 }
