@@ -489,14 +489,8 @@ export default function SupervisorPage() {
                       <p className="text-[11px] font-medium text-[#10204c]/60 mt-1 truncate w-full max-w-[130px] sm:max-w-none">
                         <span className="font-bold text-[#233c97]/70">Árb:</span> Carlos Gómez
                       </p>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="mt-1.5 text-[10px] font-bold text-[#f83636] hover:text-[#d62b2b] transition-colors underline underline-offset-2"
-                      >
-                        Cerrar sesión
-                      </button>
                     </div>
+
 
                   </div>
 
@@ -626,8 +620,8 @@ export default function SupervisorPage() {
                   type="button"
                   onClick={advanceWaiting}
                   className={`w-fit h-15 rounded-full px-8 text-base font-black text-white shadow-lg transition-all duration-200 active:scale-[0.98] border border-white/20 flex items-center justify-center ${waitingSeconds === 0 && presenceCount < 2
-                      ? "bg-red-600 shadow-red-600/20"
-                      : "bg-[#E11D48] shadow-[#E11D48]/20"
+                    ? "bg-red-600 shadow-red-600/20"
+                    : "bg-[#E11D48] shadow-[#E11D48]/20"
                     }`}
                 >
                   {waitingActionLabel}
@@ -637,33 +631,69 @@ export default function SupervisorPage() {
             </section>
           )}
 
-          {/* VISTA PARTIDO EN VIVO */}
+          {/* VISTA PARTIDO EN VIVO - DISEÑO COMPLETO Y UNIFICADO */}
           {view === "live" && (
-            <section className="flex flex-1 flex-col gap-4 pb-16">
-              <header className="rounded-[1.75rem] bg-[#10204c] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
-                <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.26em] text-white/70">
-                  <span>{selectedMatch.phase}</span>
-                  <span className="font-semibold">Cancha 1</span>
-                </div>
-                <div className="mt-4 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-white/75">Cronómetro del partido</p>
-                    <div className="text-6xl font-bold leading-none text-white sm:text-7xl">
-                      {formatClock(liveSeconds)}
-                    </div>
+            <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-2 py-4">
+
+              {/* MARCA DE AGUA (Logo de fondo) */}
+              <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 select-none">
+                <NextImage
+                  src="/assets/Logo_tMtCup.svg"
+                  alt="Fondo oficial TMT CUP"
+                  width={320}
+                  height={320}
+                  className="object-contain max-w-[80vw]"
+                  priority
+                />
+              </div>
+
+              {/* ENCABEZADO PRINCIPAL (Bloque único) */}
+              <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-6 shadow-[0_12px_35px_rgba(16,32,76,0.15)] relative">
+
+                {/* Fila superior: Fase y Cancha */}
+                <div className="flex items-center justify-between w-full mb-4">
+                  <div className="bg-[#10204c] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    {selectedMatch.phase}
                   </div>
-                  <button type="button" onClick={() => setPaused((current) => !current)} className="h-14 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur-md">
-                    {paused ? "Reanudar" : "Pausa"}
-                  </button>
-                </div>
-                <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 text-center backdrop-blur-md">
-                  <span className="text-6xl font-bold leading-none sm:text-7xl">
-                    {score.home} - {score.away}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#10204c]/50 bg-[#10204c]/5 px-3 py-1 rounded-full">
+                    Cancha 1
                   </span>
                 </div>
-              </header>
 
-              <div className="grid gap-3">
+                {/* Fila Central: Cronómetro + Controles */}
+                <div className="flex items-center justify-between gap-4 mb-5">
+                  <div className="font-secondary-modak text-6xl text-[#10204c] tracking-tight leading-none">
+                    {formatClock(liveSeconds)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPaused(!paused)}
+                    className="w-12 h-12 rounded-full bg-[#10204c] text-white flex items-center justify-center shadow-lg active:scale-[0.95] transition-transform shrink-0"
+                  >
+                    {paused ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                    )}
+                  </button>
+                </div>
+
+                {/* MARCADOR INTEGRADO (Simétrico con logos) */}
+                <div className="border-t border-[#10204c]/10 pt-4 flex justify-center items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white/50 border border-[#10204c]/10 flex items-center justify-center">
+                    <span className="text-[8px] text-[#10204c]/40 font-bold">L</span>
+                  </div>
+                  <div className="font-secondary-modak text-5xl text-[#10204c] tracking-[0.1em]">
+                    {score.home} - {score.away}
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-white/50 border border-[#10204c]/10 flex items-center justify-center">
+                    <span className="text-[8px] text-[#10204c]/40 font-bold">V</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LISTA DE JUGADORES (RosterPanels) */}
+              <div className="z-10 grid gap-4">
                 <RosterPanel
                   title={selectedMatch.homeTeam}
                   side="home"
@@ -674,7 +704,6 @@ export default function SupervisorPage() {
                   onRegisterEvent={registerEvent}
                   undoTarget={undoTarget}
                 />
-
                 <RosterPanel
                   title={selectedMatch.awayTeam}
                   side="away"
@@ -687,11 +716,11 @@ export default function SupervisorPage() {
                 />
               </div>
 
+              {/* BOTÓN FLOTANTE DE INCIDENTES */}
               <button
                 type="button"
                 onClick={() => setIncidentOpen(true)}
-                className="fixed bottom-28 right-6 z-30 h-14 w-14 rounded-full bg-red-600 text-xl font-bold text-white shadow-lg flex items-center justify-center ring-4 ring-white"
-                aria-label="Abrir reporte de incidentes"
+                className="fixed bottom-28 right-6 z-30 h-14 w-14 rounded-full bg-[#f83636] text-white shadow-xl flex items-center justify-center font-black text-xl hover:scale-105 transition-transform border border-white/20"
               >
                 !
               </button>
@@ -762,6 +791,16 @@ export default function SupervisorPage() {
               </button>
             </div>
           </div>
+        )}
+        {/* Botón de Cerrar Sesión fijo (Solo visible en Dashboard) */}
+        {view === "dashboard" && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="fixed bottom-6 left-6 z-50 bg-[#f83636] hover:bg-[#d62b2b] text-white text-xs font-bold px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 flex items-center gap-2"
+          >
+            Cerrar sesión
+          </button>
         )}
       </main>
     </div>
