@@ -22,13 +22,6 @@ export default function HeaderSupervisor() {
           />
         </div>
 
-        {/* TÍTULO */}
-        <div className="flex-1 flex justify-center">
-          <span className="text-lg md:text-2xl font-light tracking-wide text-[#10204c]/80">
-            Vista de supervisor
-          </span>
-        </div>
-
         {/* BOTÓN VISTA PÚBLICA */}
         <div className="flex items-center justify-end flex-shrink-0">
           <button

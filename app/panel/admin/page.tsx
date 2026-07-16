@@ -19,51 +19,18 @@ async function api<T = unknown>(path: string, options?: RequestInit): Promise<T>
 type Team = { id: number; name: string; category: "MASCULINO" | "FEMENINO"; group_id: number | null };
 type Player = { id: number; name: string; number: number | null; photo_url: string | null; attended: boolean; amount_paid: number; team: { id: number; name: string } | null };
 type Assignment = { id: number; day: string; field_number: number; supervisor_name: string; referee_name: string };
-type StatsResp = { goleadores: Array<{ player: string; team: string; goles: number }> };
 
 type Section = "equipos" | "jugadores" | "asistencia" | "staff" | "sorteo" | "fixture" | "final";
 
 export default function AdminPage() {
-  const [auth, setAuth] = useState<"checking" | "authed" | "denied">("checking");
   const [section, setSection] = useState<Section>("equipos");
   const [flash, setFlash] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d: { user: { role: string } | null }) => {
-        setAuth(d.user?.role === "ADMIN" ? "authed" : "denied");
-      })
-      .catch(() => setAuth("denied"));
-  }, []);
 
   useEffect(() => {
     if (!flash) return;
     const t = setTimeout(() => setFlash(null), 3500);
     return () => clearTimeout(t);
   }, [flash]);
-
-  if (auth === "checking") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#eef3ff] text-[#233c97]">
-        <p className="text-sm font-semibold">Cargando...</p>
-      </div>
-    );
-  }
-  if (auth === "denied") {
-    return (
-      <div className="flex min-h-screen flex-col bg-[#eef3ff]">
-        <Header />
-        <main className="flex flex-1 items-center justify-center px-4">
-          <div className="max-w-sm rounded-[1.8rem] border border-[#F83636]/30 bg-white p-6 text-center shadow">
-            <h1 className="text-xl font-bold text-[#F83636]">Solo administradores</h1>
-            <p className="mt-2 text-sm text-slate-600">Inicia sesión como admin en el panel del supervisor.</p>
-            <a href="/panel/supervisor" className="mt-4 inline-block rounded-full bg-[#233c97] px-5 py-2 text-sm font-semibold text-white">Ir al login</a>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   const tabs: Array<{ id: Section; label: string }> = [
     { id: "equipos", label: "Equipos" },
@@ -77,7 +44,7 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
-      <Header />
+      <Header/>
       <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-6 space-y-5">
         <h1 className="text-3xl font-black tracking-tight text-[#233c97] text-center drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
           Panel de administración
@@ -293,9 +260,9 @@ function PlayersSection({ onFlash }: FlashProp) {
   }
 
   async function rename(p: Player) {
-    const next = window.prompt("Nuevo nombre del jugador:", p.name);
-    if (next === null) return;
-    const value = next.trim();
+    const text = window.prompt("Nuevo nombre del jugador:", p.name);
+    if (text === null) return;
+    const value = text.trim();
     if (!value || value === p.name) return;
     try {
       await api(`/api/players/${p.id}`, { method: "PATCH", body: JSON.stringify({ name: value }) });
@@ -309,15 +276,12 @@ function PlayersSection({ onFlash }: FlashProp) {
   async function uploadPhoto(p: Player, file: File) {
     setPhotoBusyId(p.id);
     try {
-      // Quita el fondo EN EL NAVEGADOR antes de subir (import dinámico para
-      // no cargar el modelo hasta que de verdad se use). Si falla, sube la
-      // foto original para no dejar al admin sin poder cargar nada.
       let toUpload: Blob = file;
       let filename = file.name;
       try {
         const { removeBackground } = await import("@imgly/background-removal");
         toUpload = await removeBackground(file);
-        filename = "foto.png"; // el recorte sale como PNG transparente
+        filename = "foto.png";
       } catch (bgErr) {
         console.error("No se pudo quitar el fondo, se sube el original:", bgErr);
         onFlash({ tone: "err", msg: "No se pudo quitar el fondo; se subió la foto original." });
@@ -405,8 +369,8 @@ function PlayersSection({ onFlash }: FlashProp) {
 }
 
 // ─── ASISTENCIA Y PAGOS (check-in del día) ──────────────────
-const PRICE_FULL = 160000; // inscripción completa (COP)
-const DEPOSIT = 100000;    // abono típico (COP)
+const PRICE_FULL = 160000;
+const DEPOSIT = 100000;
 
 function cop(n: number) {
   return "$" + n.toLocaleString("es-CO");
@@ -474,7 +438,6 @@ function AttendanceSection({ onFlash }: FlashProp) {
         <p className="text-sm text-slate-500">Aún no hay jugadores inscritos.</p>
       ) : (
         <div className="space-y-4">
-          {/* Resumen */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-[#eef3ff] px-2 py-3">
               <p className="text-xs font-semibold text-slate-500">Presentes</p>
@@ -490,7 +453,6 @@ function AttendanceSection({ onFlash }: FlashProp) {
             </div>
           </div>
 
-          {/* Filtro por equipo */}
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value ? Number(e.target.value) : "")}
@@ -502,7 +464,6 @@ function AttendanceSection({ onFlash }: FlashProp) {
             ))}
           </select>
 
-          {/* Lista */}
           <ul className="space-y-2">
             {shown.map((p) => {
               const info = payInfo(p.amount_paid);
@@ -544,12 +505,10 @@ function AttendanceSection({ onFlash }: FlashProp) {
 // ─── STAFF (supervisores + asignaciones) ────────────────────
 function StaffSection({ onFlash }: FlashProp) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  // Supervisor account
   const [supName, setSupName] = useState("");
   const [supEmail, setSupEmail] = useState("");
   const [supPass, setSupPass] = useState("");
   const [supBusy, setSupBusy] = useState(false);
-  // Assignment
   const [field, setField] = useState<number>(1);
   const [assignSup, setAssignSup] = useState("");
   const [assignRef, setAssignRef] = useState("");
