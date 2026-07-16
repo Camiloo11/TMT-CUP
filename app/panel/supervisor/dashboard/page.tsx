@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 import MatchCardContainer from "./components/MatchCardContainer";
 import TeamPresenceCard from './components/TeamPresenceCard'
@@ -175,7 +176,18 @@ function buildReport(params: {
 }
 
 export default function SupervisorPage() {
+  const router = useRouter();
   const [view, setView] = useState<View>("dashboard");
+
+  // Guard de sesión: solo staff (SUPERVISOR o ADMIN) puede ver la mesa de control
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d: { user: { role: string } | null }) => {
+        if (!d.user) router.replace("/panel");
+      })
+      .catch(() => router.replace("/panel"));
+  }, [router]);
   const [supervisor] = useState<SupervisorName>("Ana Beltrán");
   const [activeFilter, setActiveFilter] = useState<Filter>("upcoming");
   const [selectedMatch, setSelectedMatch] = useState<MatchCard>(matches[2]); // Default al partido "live" (m3)

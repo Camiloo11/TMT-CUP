@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireRole, isAuthError } from "@/lib/auth";
 
 // GET /api/sanctions → historial de sanciones
 export async function GET() {
@@ -17,6 +18,9 @@ export async function GET() {
 
 // POST /api/sanctions → aplicar una sanción Y sus efectos automáticos
 export async function POST(request: Request) {
+  const auth = await requireRole(["SUPERVISOR"]);
+  if (isAuthError(auth)) return auth;
+
   const supabase = getSupabase();
   const body = await request.json();
 

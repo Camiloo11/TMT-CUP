@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "@/app/components/Header";
+import HeaderSupervisor from "@/app/components/HeaderSupervisor";
 
 // ─── Cliente HTTP mínimo ─────────────────────────────────────
 async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
@@ -20,11 +20,22 @@ type Team = { id: number; name: string; category: "MASCULINO" | "FEMENINO"; grou
 type Player = { id: number; name: string; number: number | null; photo_url: string | null; attended: boolean; amount_paid: number; team: { id: number; name: string } | null };
 type Assignment = { id: number; day: string; field_number: number; supervisor_name: string; referee_name: string };
 
-type Section = "equipos" | "jugadores" | "asistencia" | "staff" | "sorteo" | "fixture" | "final";
+type Section = "asistencia" | "jugadores" | "equipos" | "staff";
 
 export default function AdminPage() {
-  const [section, setSection] = useState<Section>("equipos");
+  const [auth, setAuth] = useState<"checking" | "authed" | "denied">("checking");
+  const [section, setSection] = useState<Section>("asistencia");
   const [flash, setFlash] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
+
+  // Guard: esta vista es SOLO para administradores
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d: { user: { role: string } | null }) => {
+        setAuth(d.user?.role === "ADMIN" ? "authed" : "denied");
+      })
+      .catch(() => setAuth("denied"));
+  }, []);
 
   useEffect(() => {
     if (!flash) return;
@@ -33,18 +44,37 @@ export default function AdminPage() {
   }, [flash]);
 
   const tabs: Array<{ id: Section; label: string }> = [
-    { id: "equipos", label: "Equipos" },
-    { id: "jugadores", label: "Jugadores" },
     { id: "asistencia", label: "Asistencia" },
+    { id: "jugadores", label: "Jugadores" },
+    { id: "equipos", label: "Equipos" },
     { id: "staff", label: "Staff" },
-    { id: "sorteo", label: "Sorteo" },
-    { id: "fixture", label: "Fixture" },
-    { id: "final", label: "Fase Final" },
   ];
+
+  if (auth === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#eef3ff] text-[#233c97]">
+        <p className="text-sm font-semibold">Cargando...</p>
+      </div>
+    );
+  }
+  if (auth === "denied") {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#eef3ff]">
+        <HeaderSupervisor />
+        <main className="flex flex-1 items-center justify-center px-4">
+          <div className="max-w-sm rounded-[1.8rem] border border-[#F83636]/30 bg-white p-6 text-center shadow">
+            <h1 className="text-xl font-bold text-[#F83636]">Solo administradores</h1>
+            <p className="mt-2 text-sm text-slate-600">Inicia sesión con una cuenta de administrador.</p>
+            <a href="/panel" className="mt-4 inline-block rounded-full bg-[#233c97] px-5 py-2 text-sm font-semibold text-white">Ir al login</a>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
-      <Header/>
+      <HeaderSupervisor />
       <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-6 space-y-5">
         <h1 className="text-3xl font-black tracking-tight text-[#233c97] text-center drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
           Panel de administración
@@ -75,13 +105,10 @@ export default function AdminPage() {
           </div>
         )}
 
-        {section === "equipos" && <TeamsSection onFlash={setFlash} />}
-        {section === "jugadores" && <PlayersSection onFlash={setFlash} />}
         {section === "asistencia" && <AttendanceSection onFlash={setFlash} />}
+        {section === "jugadores" && <PlayersSection onFlash={setFlash} />}
+        {section === "equipos" && <TeamsSection onFlash={setFlash} />}
         {section === "staff" && <StaffSection onFlash={setFlash} />}
-        {section === "sorteo" && <DrawSection onFlash={setFlash} />}
-        {section === "fixture" && <FixtureSection onFlash={setFlash} />}
-        {section === "final" && <FinalPhaseSection onFlash={setFlash} />}
       </main>
     </div>
   );
@@ -380,6 +407,7 @@ function AttendanceSection({ onFlash }: FlashProp) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamFilter, setTeamFilter] = useState<number | "">("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -418,7 +446,14 @@ function AttendanceSection({ onFlash }: FlashProp) {
     if (!Number.isNaN(n)) void patch(p, { amountPaid: n });
   }
 
-  const shown = teamFilter ? players.filter((p) => p.team?.id === teamFilter) : players;
+  // Filtro por equipo + búsqueda por nombre, ordenado por equipo y nombre
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const shown = players
+    .filter((p) => (teamFilter ? p.team?.id === teamFilter : true))
+    .filter((p) => (query.trim() ? norm(p.name).includes(norm(query)) : true))
+    .sort((a, b) =>
+      (a.team?.name ?? "").localeCompare(b.team?.name ?? "") || a.name.localeCompare(b.name),
+    );
   const present = shown.filter((p) => p.attended).length;
   const collected = shown.reduce((s, p) => s + p.amount_paid, 0);
   const pending = shown.reduce((s, p) => s + Math.max(0, PRICE_FULL - p.amount_paid), 0);
@@ -453,16 +488,25 @@ function AttendanceSection({ onFlash }: FlashProp) {
             </div>
           </div>
 
-          <select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value ? Number(e.target.value) : "")}
-            className="h-11 w-full rounded-xl border-2 border-[#c9d1f0] bg-[#f9fbff] px-4 text-sm outline-none focus:border-[#233c97]"
-          >
-            <option value="">Todos los equipos ({players.length})</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
-            ))}
-          </select>
+          {/* Búsqueda + filtro por equipo */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <TextInput
+              type="search"
+              placeholder="Buscar jugador..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value ? Number(e.target.value) : "")}
+              className="h-11 w-full rounded-xl border-2 border-[#c9d1f0] bg-[#f9fbff] px-4 text-sm outline-none focus:border-[#233c97]"
+            >
+              <option value="">Todos los equipos ({players.length})</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
+              ))}
+            </select>
+          </div>
 
           <ul className="space-y-2">
             {shown.map((p) => {
@@ -593,123 +637,3 @@ function StaffSection({ onFlash }: FlashProp) {
   );
 }
 
-// ─── SORTEO ─────────────────────────────────────────────────
-function DrawSection({ onFlash }: FlashProp) {
-  const [busy, setBusy] = useState(false);
-
-  async function run() {
-    if (!confirm("¿Ejecutar el sorteo? Los equipos masculinos se repartirán en los grupos A-D.")) return;
-    setBusy(true);
-    try {
-      await api("/api/draw", { method: "POST" });
-      onFlash({ tone: "ok", msg: "Sorteo realizado. Revisa la tabla de posiciones." });
-    } catch (err) {
-      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <Card title="Sorteo de grupos">
-      <p className="text-sm text-slate-600">
-        Reparte aleatoriamente los equipos masculinos en los 4 grupos (A, B, C, D).
-        Cada grupo queda asociado a su cancha fija.
-      </p>
-      <PrimaryBtn onClick={run} disabled={busy}>{busy ? "Sorteando..." : "🎲 Realizar sorteo"}</PrimaryBtn>
-    </Card>
-  );
-}
-
-// ─── FIXTURE ────────────────────────────────────────────────
-function FixtureSection({ onFlash }: FlashProp) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [day, setDay] = useState(today);
-  const [startTime, setStartTime] = useState("08:00");
-  const [busy, setBusy] = useState(false);
-
-  async function run() {
-    if (!confirm("¿Generar el calendario de la fase de grupos? Necesita que ya se haya hecho el sorteo.")) return;
-    setBusy(true);
-    try {
-      await api("/api/fixtures/generate", {
-        method: "POST",
-        body: JSON.stringify({ day, startTime }),
-      });
-      onFlash({ tone: "ok", msg: "Fixture generado. Los partidos ya aparecen en la vista pública." });
-    } catch (err) {
-      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <Card title="Generar fixture de grupos">
-      <p className="text-sm text-slate-600">
-        Todos contra todos dentro de cada grupo. Partidos cada 30 min (26 de juego + 4 de rotación).
-      </p>
-      <div className="grid grid-cols-2 gap-3">
-        <TextInput type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-        <TextInput type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-      </div>
-      <PrimaryBtn onClick={run} disabled={busy}>{busy ? "Generando..." : "📅 Generar fixture"}</PrimaryBtn>
-    </Card>
-  );
-}
-
-// ─── FASE FINAL (semifinales + final por categoría) ─────────
-function FinalPhaseSection({ onFlash }: FlashProp) {
-  const [busy, setBusy] = useState<string | null>(null);
-
-  async function gen(stage: "SEMIFINAL" | "FINAL", category: "MASCULINO" | "FEMENINO", label: string) {
-    if (!window.confirm(`¿Generar ${label}?`)) return;
-    setBusy(`${stage}-${category}`);
-    try {
-      const r = await api<{ created: number }>("/api/brackets/generate", {
-        method: "POST",
-        body: JSON.stringify({ stage, category }),
-      });
-      onFlash({ tone: "ok", msg: `${label}: ${r.created} partido(s) creado(s).` });
-    } catch (err) {
-      onFlash({ tone: "err", msg: err instanceof Error ? err.message : "Error" });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  function block(category: "MASCULINO" | "FEMENINO", title: string) {
-    const semiKey = `SEMIFINAL-${category}`;
-    const finalKey = `FINAL-${category}`;
-    return (
-      <div className="rounded-2xl border border-[#c9d1f0] bg-white p-4 space-y-2">
-        <p className="text-sm font-bold text-[#233c97]">{title}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => gen("SEMIFINAL", category, `Semifinales ${title}`)}
-            className="h-11 rounded-xl bg-[#233c97] text-sm font-bold text-white disabled:opacity-50"
-          >
-            {busy === semiKey ? "..." : "Semifinales"}
-          </button>
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => gen("FINAL", category, `Final ${title}`)}
-            className="h-11 rounded-xl bg-[#F7C600] text-sm font-bold text-[#10204c] disabled:opacity-50"
-          >
-            {busy === finalKey ? "..." : "Final"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Card title="Fase Final">
-      <div className="rounded-2xl bg-[#eef3ff] p-3 text-sm text-slate-600 space-y-1">
-        <p><strong>Orden:</strong> primero <strong>Semifinales</strong> (cuando TODOS los partidos de grupos de esa categoría estén finalizados), y después la <strong>Final</strong> (cuando ambas semifinales tengan ganador).</p>
-        <p className="text-xs text-slate-500">Masculino: SF1 = 1°A vs mejor 2° · SF2 = 1°B vs 1°C. Femenino: SF1 = 1° vs 4° · SF2 = 2° vs 3°.</p>
-      </div>
-      {block("MASCULINO", "Masculino")}
-      {block("FEMENINO", "Femenino")}
-    </Card>
-  );
-}

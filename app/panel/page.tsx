@@ -29,10 +29,12 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        if (data.user?.role === "ADMIN") {
+        // El API devuelve { name, role } plano; los admin van a su panel
+        // y los supervisores directo a su dashboard.
+        if (data.role === "ADMIN") {
           router.push("/panel/admin");
         } else {
-          router.push("/panel/supervisor");
+          router.push("/panel/supervisor/dashboard");
         }
       } else {
         setError("Correo o contraseña incorrectos");
