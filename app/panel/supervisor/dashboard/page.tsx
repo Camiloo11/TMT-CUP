@@ -838,7 +838,8 @@ export default function SupervisorPage() {
 function SummarySection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-[1.6rem] border-2 border-white/40 bg-white/45 backdrop-blur-md p-4 shadow-[0_8px_24px_rgba(16,32,76,0.06)]">
-      <h3 className="text-xs font-bold text-[#10204c]">{title}</h3>
+      {/* Título de sección más grande y delgado */}
+      <h3 className="text-lg font-light text-[#10204c] tracking-wide">{title}</h3>
       <div className="mt-3 space-y-2">{children}</div>
     </div>
   );
