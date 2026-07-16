@@ -323,53 +323,53 @@ export default function SupervisorPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <main className="flex-1 px-4 py-6 text-[15px] text-slate-800 sm:px-6">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-6 sm:max-w-lg">
+      <main className="flex-1 px-4 py-5 text-[15px] text-slate-800 sm:px-6 sm:py-6 md:px-8">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-5 sm:max-w-lg sm:gap-6 md:max-w-2xl">
 
           {/* VISTA DEL DASHBOARD / PANEL PRINCIPAL */}
           {view === "dashboard" && (
             <section className="flex flex-1 flex-col gap-6 w-full">
 
-              {/* ENCABEZADO FIJO: CORREGIDO PARA OCUPAR TODO EL ANCHO DE EXTREMO A EXTREMO */}
-              <header className="sticky top-0 z-50 -mx-4 -mt-6 w-[calc(100%+2rem)] rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins">
-                <div className="w-full mx-auto px-4 pt-5 pb-4 flex flex-col gap-5">
+              {/* ENCABEZADO FIJO: FULL-BLEED BASADO EN VIEWPORT (ROBUSTO ANTE CAMBIOS DE PADDING/MAX-WIDTH DEL <main>) */}
+              <header className="sticky top-0 left-1/2 z-50 -mt-5 w-screen -translate-x-1/2 rounded-b-3xl bg-white/45 backdrop-blur-md border-b-2 border-white/40 shadow-[0_10px_30px_rgba(16,32,76,0.15),_0_1px_3px_rgba(16,32,76,0.1)] overflow-hidden font-poppins sm:-mt-6">
+                <div className="mx-auto w-full max-w-md px-4 pt-5 pb-4 flex flex-col gap-4 sm:max-w-lg sm:gap-5 sm:px-6 md:max-w-2xl md:px-8">
 
                   {/* FILA SUPERIOR: LOGO -> BLOQUE CANCHA GIGANTE -> PERSONAL */}
-                  <div className="flex items-center justify-between w-full gap-0">
+                  <div className="flex items-center justify-between w-full gap-1">
 
                     {/* 1. LOGO LIBRE (AJUSTADO A LA IZQUIERDA) */}
-                    <div className="flex-1 flex items-center justify-start">
+                    <div className="flex flex-1 min-w-0 items-center justify-start">
                       <NextImage
                         src="/assets/Logo_tMtCup.svg"
                         alt="Logo oficial TMT CUP"
                         width={85}
                         height={85}
-                        className="object-contain drop-shadow-sm"
+                        className="h-14 w-14 object-contain drop-shadow-sm sm:h-[72px] sm:w-[72px] md:h-[85px] md:w-[85px]"
                         priority
                       />
                     </div>
 
                     {/* 2. INDICADOR GEOMÉTRICO CENTRAL (NÚMERO ARRIBA, TEXTO ABAJO) */}
-                    <div className="flex-shrink-0 flex flex-col items-center justify-center font-poppins px-1">
-                      <div className="w-20 h-20 bg-[#10204c] rounded-2xl flex items-center justify-center shadow-xl border border-white/10 mb-1.5">
-                        <span className="font-secondary-modak text-5xl text-white leading-none mt-1">
+                    <div className="flex shrink-0 flex-col items-center justify-center font-poppins px-1">
+                      <div className="mb-1 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#10204c] shadow-xl sm:mb-1.5 sm:h-20 sm:w-20">
+                        <span className="font-secondary-modak mt-1 text-4xl leading-none text-white sm:text-5xl">
                           1
                         </span>
                       </div>
-                      <span className="text-[15px] font-medium text-[#10204c] tracking-wide leading-none">
+                      <span className="text-[13px] font-medium leading-none tracking-wide text-[#10204c] sm:text-[15px]">
                         Cancha
                       </span>
                     </div>
 
                     {/* 3. INFORMACIÓN DEL PERSONAL (AJUSTADO A LA DERECHA) */}
-                    <div className="flex-1 flex flex-col items-end text-right justify-center pl-2">
-                      <span className="text-[10px] font-bold text-[#233c97]/50 leading-none mb-0.5">
+                    <div className="flex flex-1 min-w-0 flex-col items-end justify-center pl-1 text-right sm:pl-2">
+                      <span className="mb-0.5 truncate text-[10px] font-bold leading-none text-[#233c97]/50">
                         Supervisor
                       </span>
-                      <h3 className="text-base font-black text-[#10204c] leading-tight truncate w-full max-w-[130px] sm:max-w-none">
+                      <h3 className="w-full truncate text-sm font-black leading-tight text-[#10204c] sm:text-base">
                         {supervisor || "Ana Beltrán"}
                       </h3>
-                      <p className="text-[11px] font-medium text-[#10204c]/60 mt-1 truncate w-full max-w-[130px] sm:max-w-none">
+                      <p className="mt-1 w-full truncate text-[10px] font-medium text-[#10204c]/60 sm:text-[11px]">
                         <span className="font-bold text-[#233c97]/70">Árb:</span> Carlos Gómez
                       </p>
                     </div>
@@ -452,18 +452,18 @@ export default function SupervisorPage() {
               </div>
 
               {/* CONTENEDOR DEL CRONÓMETRO */}
-              <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-6 shadow-[0_12px_35px_rgba(16,32,76,0.12)] text-center relative overflow-hidden">
-                <div className="flex items-center justify-between w-full mb-3">
-                  <div className="bg-[#10204c] text-white text-[12px] font-weight px-3 py-1 rounded-full shadow-xs tracking-wide">
+              <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-4 shadow-[0_12px_35px_rgba(16,32,76,0.12)] text-center relative overflow-hidden sm:p-6">
+                <div className="flex items-center justify-between w-full mb-3 gap-2">
+                  <div className="bg-[#10204c] text-white text-[11px] font-weight px-3 py-1 rounded-full shadow-xs tracking-wide whitespace-nowrap sm:text-[12px]">
                     Prog: {selectedMatch.time}
                   </div>
-                  <span className="text-[12px] font-weight tracking-wider text-[#10204c]/50 bg-[#10204c]/5 px-2.5 py-1 rounded-full">
+                  <span className="text-[11px] font-weight tracking-wider text-[#10204c]/50 bg-[#10204c]/5 px-2.5 py-1 rounded-full truncate sm:text-[12px]">
                     {selectedMatch.phase}
                   </span>
                 </div>
 
                 <div className="py-2">
-                  <div className="font-secondary-modak text-8xl text-[#10204c] tracking-tight leading-none drop-shadow-[0_2px_12px_rgba(16,32,76,0.06)]">
+                  <div className="font-secondary-modak text-6xl text-[#10204c] tracking-tight leading-none drop-shadow-[0_2px_12px_rgba(16,32,76,0.06)] min-[375px]:text-7xl min-[425px]:text-8xl">
                     {formatClock(waitingSeconds)}
                   </div>
                 </div>
@@ -501,9 +501,9 @@ export default function SupervisorPage() {
                 <button
                   type="button"
                   onClick={advanceWaiting}
-                  className={`w-fit h-15 rounded-full px-8 text-base font-black text-white shadow-lg transition-all duration-200 active:scale-[0.98] border border-white/20 flex items-center justify-center ${waitingSeconds === 0 && presenceCount < 2
-                      ? "bg-red-600 shadow-red-600/20"
-                      : "bg-[#E11D48] shadow-[#E11D48]/20"
+                  className={`w-fit h-[3.75rem] rounded-full px-8 text-base font-black text-white shadow-lg transition-all duration-200 active:scale-[0.98] border border-white/20 flex items-center justify-center ${waitingSeconds === 0 && presenceCount < 2
+                    ? "bg-red-600 shadow-red-600/20"
+                    : "bg-[#E11D48] shadow-[#E11D48]/20"
                     }`}
                 >
                   {waitingActionLabel}
@@ -513,63 +513,164 @@ export default function SupervisorPage() {
             </section>
           )}
 
-          {/* VISTA PARTIDO EN VIVO */}
+          {/* VISTA PARTIDO EN VIVO - DISEÑO COMPLETO */}
           {view === "live" && (
-            <section className="flex flex-1 flex-col gap-4 pb-16">
-              <header className="rounded-[1.75rem] bg-[#10204c] p-4 text-white shadow-[0_18px_40px_rgba(35,60,151,0.18)]">
-                <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.26em] text-white/70">
-                  <span>{selectedMatch.phase}</span>
-                  <span className="font-semibold">Cancha 1</span>
-                </div>
-                <div className="mt-4 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-white/75">Cronómetro del partido</p>
-                    <div className="text-6xl font-bold leading-none text-white sm:text-7xl">
-                      {formatClock(liveSeconds)}
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setPaused((current) => !current)} className="h-14 rounded-full bg-white/15 px-4 text-sm font-semibold backdrop-blur-md">
-                    {paused ? "Reanudar" : "Pausa"}
-                  </button>
-                </div>
-                <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 text-center backdrop-blur-md">
-                  <span className="text-6xl font-bold leading-none sm:text-7xl">
-                    {score.home} - {score.away}
-                  </span>
-                </div>
-              </header>
+            <section className="flex flex-1 flex-col gap-6 font-poppins w-full relative min-h-[75vh] px-2 py-4">
 
-              <div className="grid gap-3">
-                <RosterPanel
-                  title={selectedMatch.homeTeam}
-                  side="home"
-                  players={homePlayers}
-                  events={eventsByTeam.home}
-                  openEventMenu={openEventMenu}
-                  onOpenEventMenu={setOpenEventMenu}
-                  onRegisterEvent={registerEvent}
-                  undoTarget={undoTarget}
-                />
-
-                <RosterPanel
-                  title={selectedMatch.awayTeam}
-                  side="away"
-                  players={awayPlayers}
-                  events={eventsByTeam.away}
-                  openEventMenu={openEventMenu}
-                  onOpenEventMenu={setOpenEventMenu}
-                  onRegisterEvent={registerEvent}
-                  undoTarget={undoTarget}
+              {/* MARCA DE AGUA */}
+              <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 select-none">
+                <NextImage
+                  src="/assets/Logo_tMtCup.svg"
+                  alt="Fondo oficial TMT CUP"
+                  width={320}
+                  height={320}
+                  className="object-contain max-w-[80vw]"
+                  priority
                 />
               </div>
 
+              {/* ENCABEZADO PRINCIPAL */}
+              <div className="z-10 rounded-[2.5rem] bg-white/45 backdrop-blur-md border-2 border-white/40 p-4 shadow-[0_12px_35px_rgba(16,32,76,0.15)] relative sm:p-6">
+                <div className="flex items-center justify-between w-full mb-4 gap-2">
+                  <div className="bg-[#10204c] text-white text-[10px] font-medium px-3 py-1 rounded-full tracking-wider truncate">
+                    {selectedMatch.phase}
+                  </div>
+                  <span className="text-[10px] font-medium tracking-widest text-[#10204c]/50 bg-[#10204c]/5 px-3 py-1 rounded-full whitespace-nowrap">
+                    Cancha 1
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 mb-5 sm:gap-4">
+                  <div className="font-secondary-modak text-5xl text-[#10204c] tracking-tight leading-none min-[375px]:text-6xl">
+                    {formatClock(liveSeconds)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPaused(!paused)}
+                    className="w-11 h-11 rounded-full bg-[#10204c] text-white flex items-center justify-center shadow-lg active:scale-[0.95] transition-transform shrink-0 sm:w-12 sm:h-12"
+                  >
+                    {paused ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z" /></svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                    )}
+                  </button>
+                </div>
+
+                {/* MARCADOR AJUSTADO (MÁS GRANDE Y CON LOGOS A LOS LADOS) */}
+                <div className="border-t border-[#10204c]/10 pt-5 flex justify-center items-center gap-3 sm:gap-6">
+                  {/* Logo Equipo Local */}
+                  <div className="w-10 h-10 rounded-full bg-white/60 border border-[#10204c]/15 shadow-sm flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                    <span className="text-xs text-[#10204c]/65 font-bold">L</span>
+                  </div>
+
+                  {/* Marcador Gigante */}
+                  <div className="font-secondary-modak text-5xl text-[#10204c] tracking-[0.05em] select-none min-w-[92px] text-center min-[375px]:text-6xl min-[375px]:min-w-[112px] sm:text-7xl sm:min-w-[140px]">
+                    {score.home} - {score.away}
+                  </div>
+
+                  {/* Logo Equipo Visitante */}
+                  <div className="w-10 h-10 rounded-full bg-white/60 border border-[#10204c]/15 shadow-sm flex items-center justify-center shrink-0 sm:w-12 sm:h-12">
+                    <span className="text-xs text-[#10204c]/65 font-bold">V</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PANELES DE EQUIPOS (ROSTER) */}
+              <div className="z-10 grid gap-6 md:grid-cols-2 md:items-start">
+                {[{ title: selectedMatch.homeTeam, side: "home", players: homePlayers },
+                { title: selectedMatch.awayTeam, side: "away", players: awayPlayers }].map((team) => (
+                  <div key={team.side} className="rounded-[1.6rem] border border-slate-200 bg-white/80 backdrop-blur-sm p-3.5 shadow-sm sm:p-5">
+
+                    {/* NOMBRE DE EQUIPO CENTRADO, MÁS GRANDE (text-2xl), DELGADO Y CON LOGO A LA IZQUIERDA */}
+                    <div className="flex items-center justify-center gap-3 mb-5 w-full">
+                      <div className="w-11 h-11 rounded-full bg-white border border-[#10204c]/10 flex items-center justify-center shadow-xs">
+                        <span className="text-sm text-[#10204c]/50 font-black uppercase">{team.title[0]}</span>
+                      </div>
+                      <h3 className="text-2xl font-light tracking-wide text-[#10204c] text-center">
+                        {team.title}
+                      </h3>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {team.players.map((player) => {
+                        const isOpen = openEventMenu?.playerId === player.id && openEventMenu.team === team.side;
+                        return (
+                          <div key={player.id} className="rounded-[1.25rem] border border-slate-200 bg-white px-2.5 py-3 flex flex-col gap-2 transition-all w-full overflow-hidden sm:px-3.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-slate-800 truncate pr-2">{player.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setOpenEventMenu(isOpen ? null : { team: team.side as TeamSide, playerId: player.id })}
+                                className="h-9 w-9 rounded-full bg-[#10204c]/5 hover:bg-[#10204c]/10 text-[#10204c] flex items-center justify-center transition-all shrink-0"
+                              >
+                                <svg className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                              </button>
+                            </div>
+
+                            {/* OPCIONES DE ACCIONES: SE ACOMODAN EN MÁS DE UNA FILA SI NO HAY ESPACIO (EVITA DESBORDE) */}
+                            {isOpen && (
+                              <div className="flex flex-wrap gap-1.5 mt-2 w-full justify-center items-center">
+                                {[
+                                  { icon: "⚽", type: "goal" },
+                                  { icon: "🟨", type: "yellow" },
+                                  { icon: "🟥", type: "red" }
+                                ].map((act) => (
+                                  <div key={act.type} className="flex items-center gap-1 px-1.5 py-1 rounded-full border border-slate-200 bg-slate-100 text-slate-700 shrink-0 sm:gap-1.5 sm:px-2">
+                                    {/* Botón Restar (-) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        console.log(`Restar ${act.type} al jugador ${player.id}`);
+                                      }}
+                                      className="w-5 h-5 rounded-full bg-white hover:bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-300/40 active:scale-90 transition-transform shrink-0 sm:w-6 sm:h-6 sm:text-sm"
+                                    >
+                                      <span className="leading-none mt-[-2px]">-</span>
+                                    </button>
+
+                                    {/* Emoji */}
+                                    <span className="text-[11px] select-none shrink-0 sm:text-xs">{act.icon}</span>
+
+                                    {/* Botón Sumar (+) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => registerEvent(team.side as TeamSide, player.id, act.type as EventKind)}
+                                      className="w-5 h-5 rounded-full bg-white hover:bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-300/40 active:scale-90 transition-transform shrink-0 sm:w-6 sm:h-6 sm:text-sm"
+                                    >
+                                      <span className="leading-none mt-[-1px]">+</span>
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* BOTÓN FLOTANTE DE INCIDENTES REDISEÑADO */}
               <button
                 type="button"
                 onClick={() => setIncidentOpen(true)}
-                className="fixed bottom-28 right-6 z-30 h-14 w-14 rounded-full bg-red-600 text-xl font-bold text-white shadow-lg flex items-center justify-center ring-4 ring-white"
-                aria-label="Abrir reporte de incidentes"
+                className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-[0_8px_30px_rgba(248,54,54,0.4)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
+                aria-label="Reportar incidente"
               >
-                !
+                <svg
+                  className="w-6 h-6 animate-pulse"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
               </button>
             </section>
           )}
@@ -581,7 +682,7 @@ export default function SupervisorPage() {
                 <p className="text-xs uppercase tracking-[0.28em] text-white/70">Informe del partido</p>
                 <h2 className="mt-2 text-2xl font-semibold">Resumen y bloqueo</h2>
                 <div className="mt-4 rounded-[1.4rem] bg-white/10 p-4 backdrop-blur-md">
-                  <div className="text-center text-7xl font-bold leading-none text-white">{report.score}</div>
+                  <div className="text-center text-6xl font-bold leading-none text-white sm:text-7xl">{report.score}</div>
                   <p className="mt-2 text-center text-sm text-white/80">{report.title}</p>
                   <p className="text-center text-xs uppercase tracking-[0.24em] text-white/60">{report.subtitle}</p>
                 </div>
@@ -609,7 +710,7 @@ export default function SupervisorPage() {
                 type="button"
                 onClick={() => setLocked(true)}
                 disabled={locked}
-                className="mt-auto h-16 rounded-full bg-[#10204c] px-6 text-base font-semibold text-white disabled:opacity-70"
+                className="mt-auto min-h-16 w-full rounded-full bg-[#10204c] px-6 py-3 text-center text-sm font-semibold leading-tight text-white disabled:opacity-70 sm:text-base"
               >
                 {locked ? "Bloqueado y enviado" : "Guardar y enviar a mesa de control"}
               </button>
