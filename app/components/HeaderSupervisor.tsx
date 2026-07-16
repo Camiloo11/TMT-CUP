@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-export default function HeaderSupervisor() {
+// onLogout es opcional: las vistas con sesión (admin/supervisor) lo pasan
+// para mostrar el botón de cerrar sesión; el login no lo necesita.
+export default function HeaderSupervisor({ onLogout }: { onLogout?: () => void }) {
   const router = useRouter();
 
   return (
@@ -22,8 +24,17 @@ export default function HeaderSupervisor() {
           />
         </div>
 
-        {/* BOTÓN VISTA PÚBLICA */}
-        <div className="flex items-center justify-end flex-shrink-0">
+        {/* BOTONES: CERRAR SESIÓN (solo con sesión activa) + VISTA PÚBLICA */}
+        <div className="flex items-center justify-end flex-shrink-0 gap-2">
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="bg-white/70 hover:bg-white text-[#233c97] border border-[#233c97]/25 text-xs font-bold px-5 py-2.5 rounded-full shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 whitespace-nowrap"
+            >
+              Cerrar sesión
+            </button>
+          )}
           <button
             type="button"
             onClick={() => router.push("/")}

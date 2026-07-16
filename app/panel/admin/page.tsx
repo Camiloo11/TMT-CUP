@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import HeaderSupervisor from "@/app/components/HeaderSupervisor";
+import { fetchSessionUser, logout } from "@/lib/session-client";
 
 // ─── Cliente HTTP mínimo ─────────────────────────────────────
 async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
@@ -27,15 +28,19 @@ export default function AdminPage() {
   const [section, setSection] = useState<Section>("asistencia");
   const [flash, setFlash] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
 
-  // Guard: esta vista es SOLO para administradores
+  // Guard: esta vista es SOLO para administradores.
+  // fetchSessionUser renueva el token expirado antes de negar el acceso.
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d: { user: { role: string } | null }) => {
-        setAuth(d.user?.role === "ADMIN" ? "authed" : "denied");
-      })
+    fetchSessionUser()
+      .then((user) => setAuth(user?.role === "ADMIN" ? "authed" : "denied"))
       .catch(() => setAuth("denied"));
   }, []);
+
+  async function handleLogout() {
+    if (!window.confirm("¿Cerrar sesión?")) return;
+    await logout();
+    window.location.href = "/panel";
+  }
 
   useEffect(() => {
     if (!flash) return;
@@ -74,7 +79,7 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#eef3ff] font-poppins text-[#10204c]">
-      <HeaderSupervisor />
+      <HeaderSupervisor onLogout={handleLogout} />
       <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-6 space-y-5">
         <h1 className="text-3xl font-black tracking-tight text-[#233c97] text-center drop-shadow-[0_2px_8px_rgba(247,198,0,0.4)]">
           Panel de administración

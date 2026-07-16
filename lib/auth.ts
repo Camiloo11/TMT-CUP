@@ -12,6 +12,9 @@ export type SessionUser = {
 
 export const ACCESS_COOKIE = "sb-access-token";
 export const REFRESH_COOKIE = "sb-refresh-token";
+// Guarda la elección de "Recordarme" para que el refresh sepa si debe
+// emitir cookies persistentes (sobreviven al cierre del navegador) o de sesión.
+export const REMEMBER_COOKIE = "tmt-remember";
 
 // Lee el usuario autenticado desde la cookie de sesión (o null si no hay).
 export async function getSessionUser(): Promise<SessionUser | null> {

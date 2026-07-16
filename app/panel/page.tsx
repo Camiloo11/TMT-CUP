@@ -1,17 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import HeaderSupervisor from "@/app/components/HeaderSupervisor";
 import Footer from "@/app/components/Footer";
+import { fetchSessionUser, REMEMBERED_EMAIL_KEY } from "@/lib/session-client";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // "Recordarme" en acción: pre-llena el correo guardado y, si la sesión
+  // sigue viva (o se puede renovar), entra directo sin pedir contraseña.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage solo existe en el cliente: hay que leerlo al montar
+      if (saved) setEmail(saved);
+    } catch {
+      // almacenamiento no disponible: se ignora
+    }
+    fetchSessionUser().then((user) => {
+      if (!user) return;
+      router.replace(user.role === "ADMIN" ? "/panel/admin" : "/panel/supervisor/dashboard");
+    });
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,12 +41,18 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
+        try {
+          if (remember) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+          else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+        } catch {
+          // almacenamiento no disponible: se ignora
+        }
         // El API devuelve { name, role } plano; los admin van a su panel
         // y los supervisores directo a su dashboard.
         if (data.role === "ADMIN") {
@@ -39,7 +63,7 @@ export default function AdminLoginPage() {
       } else {
         setError("Correo o contraseña incorrectos");
       }
-    } catch (err) {
+    } catch {
       setError("Ocurrió un error al intentar iniciar sesión");
     } finally {
       setBusy(false);
@@ -99,6 +123,17 @@ export default function AdminLoginPage() {
                     )}
                   </button>
                 </div>
+
+                {/* Recordarme: mantiene la sesión iniciada aunque se cierre la app */}
+                <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="h-4 w-4 accent-[#233c97] cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-600">Recordarme</span>
+                </label>
               </div>
 
               {error && <p className="text-center text-sm font-medium text-[#F83636]">{error}</p>}

@@ -6,6 +6,7 @@ import NextImage from "next/image";
 import MatchCardContainer from "./components/MatchCardContainer";
 import TeamPresenceCard from './components/TeamPresenceCard'
 import ControlAlertPopup from './components/ControlAlertPopup'
+import { fetchSessionUser, logout, clearSupervisorCache, SUPERVISOR_CACHE_KEY } from "@/lib/session-client";
 
 type View = "dashboard" | "waiting" | "live" | "summary";
 type MatchStatus = "upcoming" | "live" | "finished";
@@ -52,6 +53,39 @@ type Report = {
   incidents: Incident[];
   walkover?: string;
 };
+
+// Respaldo local de la mesa de control: si el supervisor cierra la app o
+// se le apaga el teléfono en medio de un partido, NADA se pierde. El
+// respaldo solo se borra al cerrar sesión explícitamente o al enviar el acta.
+type PersistedControl = {
+  version: 1;
+  savedAt: number; // epoch ms, para descontar el tiempo real transcurrido
+  view: View;
+  match: MatchCard;
+  waitingSeconds: number;
+  presence: { home: boolean; away: boolean };
+  liveSeconds: number;
+  paused: boolean;
+  eventsByTeam: Record<TeamSide, Record<string, LiveEvent[]>>;
+  incidents: Incident[];
+  report: Report | null;
+};
+
+// Un respaldo más viejo que esto es de otro día de torneo: se descarta
+const CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+function readControlBackup(): PersistedControl | null {
+  try {
+    const raw = localStorage.getItem(SUPERVISOR_CACHE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as PersistedControl;
+    if (saved?.version !== 1 || !saved.match || saved.view === "dashboard") return null;
+    if (Date.now() - saved.savedAt > CACHE_MAX_AGE_MS) return null;
+    return saved;
+  } catch {
+    return null; // respaldo corrupto o almacenamiento no disponible
+  }
+}
 
 const matches: MatchCard[] = [
   { id: "m1", time: "08:00", phase: "Grupo A - Jornada 1", homeTeam: "Raptors FC", awayTeam: "North Stars", status: "finished" },
@@ -179,12 +213,12 @@ export default function SupervisorPage() {
   const router = useRouter();
   const [view, setView] = useState<View>("dashboard");
 
-  // Guard de sesión: solo staff (SUPERVISOR o ADMIN) puede ver la mesa de control
+  // Guard de sesión: solo staff (SUPERVISOR o ADMIN) puede ver la mesa de
+  // control. fetchSessionUser renueva el token expirado antes de negar acceso.
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d: { user: { role: string } | null }) => {
-        if (!d.user) router.replace("/panel");
+    fetchSessionUser()
+      .then((user) => {
+        if (!user) router.replace("/panel");
       })
       .catch(() => router.replace("/panel"));
   }, [router]);
@@ -204,8 +238,79 @@ export default function SupervisorPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [report, setReport] = useState<Report | null>(null);
   const [locked, setLocked] = useState(false);
+  // true cuando ya se intentó restaurar el respaldo local (evita
+  // sobrescribirlo con el estado inicial vacío antes de leerlo)
+  const [restored, setRestored] = useState(false);
 
   const score = countGoals(eventsByTeam);
+
+  // ── RESTAURAR: al abrir la app, si quedó un partido a medias se retoma ──
+  /* eslint-disable react-hooks/set-state-in-effect -- localStorage solo existe en el cliente: restaurar el respaldo exige setState al montar */
+  useEffect(() => {
+    const saved = readControlBackup();
+    if (saved) {
+      // Los cronómetros descuentan el tiempo REAL transcurrido con la app cerrada
+      const elapsed = Math.round((Date.now() - saved.savedAt) / 1000);
+      setSelectedMatch(saved.match);
+      setPresence(saved.presence);
+      setEventsByTeam(saved.eventsByTeam);
+      setIncidents(saved.incidents);
+      setReport(saved.report);
+      setPaused(saved.paused);
+      const waiting = saved.view === "waiting"
+        ? Math.max(0, saved.waitingSeconds - elapsed)
+        : saved.waitingSeconds;
+      const live = saved.view === "live" && !saved.paused
+        ? Math.max(0, saved.liveSeconds - elapsed)
+        : saved.liveSeconds;
+      setWaitingSeconds(waiting);
+      setLiveSeconds(live);
+      if (live === 0) setExtraTimeUnlocked(true);
+      setView(saved.view);
+    }
+    setRestored(true);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // ── RESPALDAR: cada cambio de la mesa de control queda en localStorage ──
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      if (view === "dashboard") return; // sin partido activo no hay nada que respaldar
+      if (locked) {
+        // Acta enviada: el respaldo ya cumplió su misión
+        clearSupervisorCache();
+        return;
+      }
+      const snapshot: PersistedControl = {
+        version: 1,
+        savedAt: Date.now(),
+        view,
+        match: selectedMatch,
+        waitingSeconds,
+        presence,
+        liveSeconds,
+        paused,
+        eventsByTeam,
+        incidents,
+        report,
+      };
+      localStorage.setItem(SUPERVISOR_CACHE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // sin espacio o modo privado: la mesa de control sigue funcionando
+    }
+  }, [restored, view, selectedMatch, waitingSeconds, presence, liveSeconds, paused, eventsByTeam, incidents, report, locked]);
+
+  // Cierre de sesión EXPLÍCITO: la única acción que borra el respaldo local
+  async function handleLogout() {
+    const activeMatch = view !== "dashboard" && !locked;
+    const message = activeMatch
+      ? "Hay un partido a medias: cerrar sesión BORRA el respaldo local de la mesa de control. ¿Cerrar sesión de todas formas?"
+      : "¿Cerrar sesión?";
+    if (!window.confirm(message)) return;
+    await logout();
+    router.replace("/panel");
+  }
 
   useEffect(() => {
     if (view !== "waiting" || waitingSeconds === 0) return;
@@ -384,6 +489,13 @@ export default function SupervisorPage() {
                       <p className="text-[11px] font-medium text-[#10204c]/60 mt-1 truncate w-full max-w-[130px] sm:max-w-none">
                         <span className="font-bold text-[#233c97]/70">Árb:</span> Carlos Gómez
                       </p>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="mt-1.5 text-[10px] font-bold text-[#f83636] hover:text-[#d62b2b] transition-colors underline underline-offset-2"
+                      >
+                        Cerrar sesión
+                      </button>
                     </div>
 
                   </div>
