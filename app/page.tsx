@@ -189,11 +189,12 @@ export default function PublicLivePage() {
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" 
       />
 
-      {/* Cabecera horizontal */}
+      {/* Cabecera horizontal fija */}
       <Header activeIndex={activeIndex} onTabChange={irAVista} />
 
-      <main className="flex-1 w-full flex flex-col justify-start pb-28 md:pb-12">
-        <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6">
+      {/* MAIN: Se añade el padding-top necesario en cada breakpoint para liberar la altura del header fixed */}
+      <main className="flex-1 w-full flex flex-col justify-start pt-20 min-[375px]:pt-24 sm:pt-28 md:pt-36 lg:pt-40 pb-28 md:pb-12">
+        <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2 md:py-6">
           
           {/* ========================================== */}
           {/* 1. MÓVIL: VISTA CARRUSEL CON BARRA DE CONTROL */}
@@ -321,7 +322,8 @@ export default function PublicLivePage() {
               {/* Cabecera en formato Burbuja/Píldora Redondeada */}
               <div className="w-full flex justify-center mb-2">
                 <div className="px-6 py-2.5 rounded-full bg-[#f8f5ff] border border-[#7c3aed]/15 shadow-sm flex items-center gap-2">
-                  <span className="text-xl font-normal tracking-wide text-[#7c3aed] font-secondary-modak">
+                  <span className="material-symbols-outlined text-[#7c3aed] !text-[40px]">woman</span>
+                  <span className="text-xl font-medium tracking-wide text-[#7c3aed] font-poppins">
                     Torneo femenino
                   </span>
                 </div>
