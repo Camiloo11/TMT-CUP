@@ -1,138 +1,177 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import HeaderSupervisor from "@/app/components/HeaderSupervisor";
 import Footer from "@/app/components/Footer";
 
-type SupervisorName = "Ana Beltrán" | "Mario Silva" | "Sofía Ramos" | "Diego Costa";
-const supervisors: SupervisorName[] = ["Ana Beltrán", "Mario Silva", "Sofía Ramos", "Diego Costa"];
-
-export default function ConfigPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
-  const [supervisor, setSupervisor] = useState<SupervisorName | "">("");
-  const [supervisorMenuOpen, setSupervisorMenuOpen] = useState(false);
-  const supervisorSelectRef = useRef<HTMLDivElement | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    function handleDocumentMouseDown(event: MouseEvent) {
-      if (!supervisorSelectRef.current) return;
-      if (!supervisorSelectRef.current.contains(event.target as Node)) {
-        setSupervisorMenuOpen(false);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, rememberMe }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        router.push(data.user?.role === "ADMIN" ? "/panel/admin" : "/panel/supervisor");
+      } else {
+        setError("Credenciales incorrectas.");
       }
+    } catch {
+      setError("Error al conectar con el servidor.");
+    } finally {
+      setBusy(false);
     }
-    document.addEventListener("mousedown", handleDocumentMouseDown);
-    return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
-  }, []);
-
-  const handleIngresar = () => {
-    if (!supervisor) return;
-    router.push(`/panel/supervisor/dashboard?name=${encodeURIComponent(supervisor)}`);
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
       <HeaderSupervisor />
 
-      <main className="flex-1 px-4 pb-16 text-[15px] text-[color:var(--foreground)] sm:px-6 flex items-center justify-center">
-        <div className="w-full max-w-md flex flex-col gap-6 sm:max-w-lg items-center">
-
-          <section className="font-poppins space-y-6 w-full flex flex-col items-center animate-fade-in">
-            <div className="flex justify-center pt-2">
-              <Image
-                src="/assets/Logo_tMtCup.svg"
-                alt="Logo TMT CUP"
-                width={260}
-                height={260}
-                className="object-contain drop-shadow-[0_12px_24px_rgba(35,60,151,0.08)] sm:h-72 sm:w-72"
-                priority
-              />
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+        {/* Contenedor Card Principal */}
+        <div className="flex flex-col-reverse md:flex-row bg-white rounded-3xl w-full max-w-4xl border border-[color:var(--border)] shadow-[0_20px_50px_rgba(35,60,151,0.08)] overflow-hidden my-6">
+          
+          {/* Lado del Formulario (Izquierda) */}
+          <div className="p-8 sm:p-12 md:p-16 w-full md:w-1/2 flex flex-col justify-center">
+            
+            {/* Título Limpio con Poppins y Color Primario */}
+            <div className="mb-8">
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[color:var(--primary)]">
+                ¡Hola, staff!
+              </h2>
             </div>
 
-            <div className="w-full space-y-6 rounded-3xl border border-[#e2e8f5] bg-white p-6 shadow-[0_15px_35px_rgba(35,60,151,0.04)]">
-              <div className="space-y-1 text-center">
-                <label className="block text-xl sm:text-2xl font-medium tracking-wide text-[color:var(--primary)]" htmlFor="supervisor-select">
-                  Selecciona tu perfil
+            <form onSubmit={handleLogin} className="flex flex-col space-y-5">
+              
+              {/* Campo Correo Electrónico */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-slate-600">
+                  Correo electrónico
                 </label>
-                <p className="text-xs sm:text-sm text-slate-400 font-normal">
-                  Elige tu nombre para acceder a la mesa de control
-                </p>
-              </div>
-
-              <div className="relative" ref={supervisorSelectRef}>
-                <button
-                  id="supervisor-select"
-                  type="button"
-                  onClick={() => setSupervisorMenuOpen(!supervisorMenuOpen)}
-                  className="flex h-14 w-full items-center justify-between gap-4 rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 text-left text-sm font-medium text-[color:var(--foreground)] outline-none transition-all duration-200 focus:border-[color:var(--primary)] focus:bg-white focus:shadow-[0_0_0_4px_rgba(35,60,151,0.08)]"
-                >
-                  <span className={supervisor ? "text-[color:var(--foreground)] font-normal" : "text-slate-400"}>
-                    {supervisor || "Elige tu nombre..."}
-                  </span>
-                  <svg
-                    viewBox="0 0 20 20"
-                    className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${supervisorMenuOpen ? "rotate-180 text-[color:var(--primary)]" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                <div className="relative flex items-center rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 transition-all duration-200 focus-within:border-[color:var(--primary)] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(35,60,151,0.08)]">
+                  <svg className="h-5 w-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                   </svg>
-                </button>
-
-                {supervisorMenuOpen && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 max-h-52 overflow-y-auto rounded-2xl border border-[#e2e8f5] bg-white p-1.5 shadow-[0_15px_30px_rgba(35,60,151,0.1)]">
-                    {supervisors.map((name) => {
-                      const isSelected = supervisor === name;
-                      return (
-                        <button
-                          key={name}
-                          type="button"
-                          onClick={() => {
-                            setSupervisor(name);
-                            setSupervisorMenuOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors ${isSelected ? "bg-[#eef3ff] text-[color:var(--primary)] font-normal" : "bg-white text-slate-600 hover:bg-[#f8fafc]"}`}
-                        >
-                          <span>{name}</span>
-                          {isSelected && (
-                            <svg className="h-4 w-4 text-[color:var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                  <input
+                    type="email"
+                    placeholder="ejemplo@tmtcup.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-14 w-full bg-transparent pl-3 text-sm font-medium text-[color:var(--foreground)] placeholder:text-slate-400 outline-none"
+                  />
+                </div>
               </div>
 
-              {supervisor && (
-                <div className="flex flex-nowrap justify-center gap-3 pt-1">
-                  <div className="w-auto flex-1 rounded-xl border border-[#f1f5f9] bg-[#f8fafc] px-3 py-2.5 text-center min-w-0">
-                    <p className="text-[11px] font-medium text-slate-400 normal-case truncate">Árbitro central</p>
-                    <p className="mt-0.5 text-[14px] font-medium text-slate-600 truncate">Carlos Molina</p>
-                  </div>
-                  <div className="w-auto flex-1 rounded-xl border border-[#f1f5f9] bg-[#f8fafc] px-3 py-2.5 text-center min-w-0">
-                    <p className="text-[11px] font-medium text-slate-400 normal-case truncate">Cancha asignada</p>
-                    <p className="mt-0.5 text-[14px] font-medium text-slate-600 truncate">Cancha 1</p>
-                  </div>
+              {/* Campo Contraseña con Ojito */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-slate-600">
+                  Contraseña
+                </label>
+                <div className="relative flex items-center rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 transition-all duration-200 focus-within:border-[color:var(--primary)] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(35,60,151,0.08)]">
+                  <svg className="h-5 w-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-14 w-full bg-transparent pl-3 pr-2 text-sm font-medium text-[color:var(--foreground)] placeholder:text-slate-400 outline-none"
+                  />
+                  
+                  {/* Botón para Mostrar / Ocultar */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 text-slate-400 hover:text-[color:var(--primary)] focus:outline-none transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      /* Icono Ojo Tachado (Ocultar) */
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.025 10.025 0 013.682-.763c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m-4.092-4.092a3 3 0 11-4.243-4.243M3 3l18 18" />
+                      </svg>
+                    ) : (
+                      /* Icono Ojo (Ver) */
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Recordarme */}
+              <div className="flex items-center pt-1 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-500 font-medium select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[color:var(--primary)] focus:ring-[color:var(--primary)] transition-colors"
+                  />
+                  Recordarme
+                </label>
+              </div>
+
+              {error && (
+                <div className="rounded-xl bg-red-50 p-3 text-center text-xs font-medium text-[color:var(--danger)] border border-red-100 animate-fade-in">
+                  {error}
                 </div>
               )}
-            </div>
 
-            <div className="flex justify-center pt-1 w-full">
+              {/* Botón de Ingresar */}
               <button
-                type="button"
-                disabled={!supervisor}
-                onClick={handleIngresar}
-                className="inline-flex h-12 w-auto items-center justify-center rounded-2xl bg-[color:var(--primary)] px-8 text-base font-semibold text-white shadow-md transition-all duration-200 hover:opacity-95 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none"
+                type="submit"
+                disabled={busy}
+                className="mt-2 inline-flex h-12 w-auto self-start items-center justify-center rounded-full bg-[#f83636] hover:bg-[#d62b2b] text-white text-base font-bold px-8 shadow-md hover:shadow-lg transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none"
               >
-                Ingresar al panel
+                {busy ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Validando...
+                  </span>
+                ) : (
+                  "Ingresar"
+                )}
               </button>
-            </div>
-          </section>
+            </form>
+          </div>
+
+          {/* Lado Imagen Decorativa (Derecha) */}
+          <div className="w-full md:w-1/2 min-h-[220px] md:min-h-full relative overflow-hidden bg-slate-100">
+            <Image
+              src="/assets/ImageLogin.png"
+              alt="TMT CUP Ilustración Login"
+              fill
+              priority
+              className="object-cover object-bottom md:object-[center_80%]"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
 
         </div>
       </main>
