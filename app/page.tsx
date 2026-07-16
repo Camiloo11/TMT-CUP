@@ -277,7 +277,8 @@ export default function PublicLivePage() {
               {/* Cabecera en formato Burbuja/Píldora Redondeada */}
               <div className="w-full flex justify-center mb-2">
                 <div className="px-6 py-2.5 rounded-full bg-[#233c97]/5 border border-[#233c97]/15 shadow-sm flex items-center gap-2">
-                  <span className="text-xl font-normal tracking-wide text-[#233c97] font-secondary-modak">
+                  <span className="material-symbols-outlined text-[#233c97] !text-[40px]">man</span>
+                  <span className="text-xl font-medium tracking-wide text-[#233c97] font-poppins">
                     Torneo masculino
                   </span>
                 </div>
