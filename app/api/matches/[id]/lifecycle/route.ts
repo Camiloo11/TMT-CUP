@@ -267,18 +267,19 @@ export async function POST(
     }
     const extra = Number(body.extraTimeMin ?? 0) || 0;
     await recomputeScore(supabase, matchId);
-    // Penales (solo fase eliminatoria, si hubo empate)
-    const penaltyA = body.penaltyA !== undefined ? Number(body.penaltyA) : null;
-    const penaltyB = body.penaltyB !== undefined ? Number(body.penaltyB) : null;
+    // Penales: solo se envían si se reportaron (fase eliminatoria con empate).
+    // Además de ser lo correcto, así el pitazo final no se cae en una BD que
+    // aún no corrió la migración de penales ("penalty_a ... schema cache").
+    const update: Record<string, unknown> = {
+      status: "FINALIZADO",
+      finished_at: new Date().toISOString(),
+      extra_time_min: extra,
+    };
+    if (body.penaltyA !== undefined) update.penalty_a = Number(body.penaltyA);
+    if (body.penaltyB !== undefined) update.penalty_b = Number(body.penaltyB);
     const { data, error } = await supabase
       .from("matches")
-      .update({
-        status: "FINALIZADO",
-        finished_at: new Date().toISOString(),
-        extra_time_min: extra,
-        penalty_a: penaltyA,
-        penalty_b: penaltyB,
-      })
+      .update(update)
       .eq("id", matchId)
       .select()
       .single();

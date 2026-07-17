@@ -926,7 +926,7 @@ export default function SupervisorPage() {
                   width={320}
                   height={320}
                   className="object-contain max-w-[80vw]"
-                  priority
+                  style={{ height: "auto" }}
                 />
               </div>
 
@@ -996,7 +996,7 @@ export default function SupervisorPage() {
                   width={320}
                   height={320}
                   className="object-contain max-w-[80vw]"
-                  priority
+                  style={{ height: "auto" }}
                 />
               </div>
 
@@ -1155,7 +1155,7 @@ export default function SupervisorPage() {
                   width={320}
                   height={320}
                   className="object-contain max-w-[80vw]"
-                  priority
+                  style={{ height: "auto" }}
                 />
               </div>
 
