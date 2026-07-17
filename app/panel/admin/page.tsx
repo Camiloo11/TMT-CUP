@@ -205,8 +205,8 @@ export function FinishedMatchCardMasculino({ acta, onEdit }: { acta: FinishedMat
 
       {acta.incidentsNotes && (
         <div className="mt-4 p-3 rounded-2xl bg-amber-50/60 border border-amber-100 text-left">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800 flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes / Notas reportadas:
+          <span className="text-[12px] font-medium tracking-wider text-amber-800 flex items-center gap-1">
+            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes:
           </span>
           <p className="text-xs font-light text-amber-950 mt-1 italic">&quot;{acta.incidentsNotes}&quot;</p>
         </div>
@@ -300,8 +300,8 @@ export function FinishedMatchCardFemenino({ acta, onEdit }: { acta: FinishedMatc
 
       {acta.incidentsNotes && (
         <div className="mt-4 p-3 rounded-2xl bg-amber-50/60 border border-amber-100 text-left">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800 flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes / Notas reportadas:
+          <span className="text-[12px] font-medium tracking-wider text-amber-800 flex items-center gap-1">
+            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes:
           </span>
           <p className="text-xs font-light text-amber-950 mt-1 italic">&quot;{acta.incidentsNotes}&quot;</p>
         </div>
