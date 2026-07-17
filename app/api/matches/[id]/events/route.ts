@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
 import { requireRole, isAuthError } from "@/lib/auth";
+import { computeSuspendedForMatch } from "@/lib/suspensions";
 
 type Db = ReturnType<typeof getSupabase>;
 
@@ -91,17 +92,29 @@ export async function POST(
     return Response.json({ error: "Ese equipo no juega este partido" }, { status: 400 });
   }
 
-  // Jugador expulsado no puede sumar más eventos (roja = bloqueado)
+  // Doble control disciplinario:
+  //  1. Roja en ESTE partido → ya está expulsado, no suma más eventos.
+  //  2. Suspendido por sanción (2 amarillas acumuladas o roja previa) → no
+  //     debería estar en cancha: se rechaza registrarle eventos.
   if (body.playerId) {
-    const { data: red } = await supabase
+    const { data: redHere } = await supabase
       .from("match_events")
       .select("id")
+      .eq("match_id", matchId)
       .eq("player_id", body.playerId)
       .eq("type", "ROJA")
       .limit(1);
-    if (red && red.length > 0) {
+    if (redHere && redHere.length > 0) {
       return Response.json(
-        { error: "Jugador expulsado: no puede registrar más eventos" },
+        { error: "Jugador expulsado en este partido: no puede registrar más eventos" },
+        { status: 409 }
+      );
+    }
+
+    const suspended = await computeSuspendedForMatch(supabase, matchId);
+    if (suspended.has(Number(body.playerId))) {
+      return Response.json(
+        { error: "Jugador suspendido por sanción: no puede jugar este partido" },
         { status: 409 }
       );
     }

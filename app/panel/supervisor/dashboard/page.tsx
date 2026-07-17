@@ -1109,15 +1109,15 @@ export default function SupervisorPage() {
               {/* ÁREA DE BOTONES DE ACCIÓN INFERIORES FLOTANTES */}
               <div className="fixed bottom-6 left-6 right-6 z-40 flex items-center justify-between gap-3">
                 <div className="flex-1 min-h-[56px] flex items-center">
-                  {liveSeconds === 0 && (
-                    <button
-                      type="button"
-                      onClick={triggerManualFinish}
-                      className="animate-slide-up w-full h-14 rounded-full bg-[#10204c] text-white font-bold text-sm shadow-[0_8px_30px_rgba(16,32,76,0.3)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
-                    >
-                      Finalizar encuentro
-                    </button>
-                  )}
+                  {/* El árbitro finaliza cuando pita (siempre disponible, no
+                      atado a que el cronómetro llegue a 0). Mismo estilo. */}
+                  <button
+                    type="button"
+                    onClick={triggerManualFinish}
+                    className="animate-slide-up w-full h-14 rounded-full bg-[#10204c] text-white font-bold text-sm shadow-[0_8px_30px_rgba(16,32,76,0.3)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
+                  >
+                    Finalizar encuentro
+                  </button>
                 </div>
 
                 <button

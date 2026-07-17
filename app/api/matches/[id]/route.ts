@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase";
 import { requireRole, isAuthError } from "@/lib/auth";
+import { computeSuspendedForMatch } from "@/lib/suspensions";
 
 // GET /api/matches/[id] → detalle completo del partido: plantillas
 // (marcando expulsados), eventos, y supervisor/árbitro de la cancha hoy.
@@ -42,22 +43,13 @@ export async function GET(
       .order("created_at", { ascending: true });
     if (evErr) return Response.json({ error: `events: ${evErr.message}` }, { status: 500 });
 
-    // Expulsados en CUALQUIER partido del torneo → bloqueados en la plantilla
+    // Suspendidos según las reglas de sanción (2 amarillas acumuladas = 1 fecha,
+    // roja = 1 fecha, amarillas se reinician en fase final, rojas permanecen).
     type PlayerRow = { id: number; [k: string]: unknown };
     const teamAPlayers: PlayerRow[] = teamARaw?.players ?? [];
     const teamBPlayers: PlayerRow[] = teamBRaw?.players ?? [];
-    const rosterIds = [...teamAPlayers, ...teamBPlayers].map((p) => p.id);
 
-    let suspended = new Set<number>();
-    if (rosterIds.length > 0) {
-      const { data: reds, error: redErr } = await supabase
-        .from("match_events")
-        .select("player_id")
-        .eq("type", "ROJA")
-        .in("player_id", rosterIds);
-      if (redErr) return Response.json({ error: `rojas: ${redErr.message}` }, { status: 500 });
-      suspended = new Set((reds ?? []).map((r) => r.player_id as number));
-    }
+    const suspended = await computeSuspendedForMatch(supabase, matchId);
     const mark = (players: PlayerRow[]) =>
       players.map((p) => ({ ...p, suspended: suspended.has(p.id) }));
 
