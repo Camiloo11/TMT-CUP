@@ -179,8 +179,8 @@ function readControlBackup(): PersistedControl | null {
   }
 }
 
-const matchDuration = 26 * 60;
-const waitingDuration = 6 * 60;
+const matchDuration = 0.1 * 60;
+const waitingDuration = 0.1 * 60;
 
 function createEmptyEvents() {
   return { home: {}, away: {} } as Record<TeamSide, Record<string, LiveEvent[]>>;
