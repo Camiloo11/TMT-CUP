@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { teamAvatar } from "@/lib/team-emoji";
+import { useEffect, useState } from "react";
 
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
 export type MatchStatus = "upcoming" | "live" | "finished";
-
-export type MatchEventSummary = {
-  kind: string; // goal | yellow | red
-  team: "home" | "away";
-  playerName: string;
-  minute: number;
-};
 
 export type MatchCard = {
   id: string;
@@ -23,15 +15,24 @@ export type MatchCard = {
   awayTeam: string;
   status: MatchStatus;
   readyNow?: boolean;
-  // Datos reales del partido finalizado (marcador y línea de tiempo)
+  // Datos reales del partido finalizado (marcador + id del equipo local para
+  // mapear los eventos a "home"/"away"). Opcionales: solo los usa la tarjeta
+  // de finalizado; el diseño no cambia si vienen vacíos.
   homeScore?: number | null;
   awayScore?: number | null;
-  events?: MatchEventSummary[];
+  homeTeamId?: number | null;
 };
 
 type MatchCardProps = {
   match: MatchCard;
   onAction?: () => void;
+};
+
+type FinishedEvent = {
+  kind: "goal" | "yellow" | "red";
+  team: "home" | "away";
+  playerName: string;
+  minute: number;
 };
 
 // ==========================================
@@ -83,8 +84,8 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
 
       <div className="flex items-center justify-between gap-4 bg-rose-500/[0.02] border border-rose-500/10 rounded-2xl px-4 py-3 relative z-10 transition-colors group-hover:bg-rose-500/[0.04]">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-lg font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
-            {teamAvatar(match.homeTeam)}
+          <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
+            {match.homeTeam.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-sm font-black text-[var(--foreground)] truncate">
             {match.homeTeam}
@@ -97,8 +98,8 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
           <span className="text-sm font-black text-[var(--foreground)] truncate">
             {match.awayTeam}
           </span>
-          <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-lg font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
-            {teamAvatar(match.awayTeam)}
+          <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
+            {match.awayTeam.substring(0, 2).toUpperCase()}
           </div>
         </div>
       </div>
@@ -118,14 +119,35 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
 // ==========================================
 function FinishedMatchCard({ match }: MatchCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [events, setEvents] = useState<FinishedEvent[]>([]);
 
-  // Datos REALES del partido (marcador y eventos vienen del backend)
-  const mockMatch = {
-    ...match,
-    homeScore: match.homeScore ?? 0,
-    awayScore: match.awayScore ?? 0,
-    events: match.events ?? [],
-  };
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
+
+  // La línea de tiempo real se pide solo al desplegar (evita N fetches al cargar)
+  useEffect(() => {
+    if (!isExpanded || events.length > 0) return;
+    let cancelled = false;
+    fetch(`/api/matches/${match.id}/events`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !Array.isArray(data)) return;
+        setEvents(
+          data.map((e: { type: string; team_id: number; minute: number | null; player: { name: string } | null }) => ({
+            kind: e.type === "GOL" ? "goal" : e.type === "AMARILLA" ? "yellow" : "red",
+            team: match.homeTeamId != null && e.team_id === match.homeTeamId ? "home" : "away",
+            playerName: e.player?.name ?? "Gol de oficio",
+            minute: e.minute ?? 0,
+          })) as FinishedEvent[]
+        );
+      })
+      .catch(() => {
+        // sin conexión: la tarjeta sigue mostrando el marcador real
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isExpanded, match.id, match.homeTeamId, events.length]);
 
   const renderIconoEvento = (kind: string) => {
     switch (kind) {
@@ -138,14 +160,14 @@ function FinishedMatchCard({ match }: MatchCardProps) {
 
   return (
     <div className="w-full bg-[var(--card-strong)] border border-[var(--border)] rounded-3xl p-5 shadow-[0_4px_20px_rgba(16,32,76,0.02)] opacity-95 hover:opacity-100 transition-all duration-300">
-      
+
       <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-4">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-bold text-[var(--foreground)]/50">
-            {mockMatch.phase}
+            {match.phase}
           </span>
           <p className="text-[10px] text-[var(--foreground)]/40 font-medium">
-            Concluido · Programado {mockMatch.time}
+            Concluido · Programado {match.time}
           </p>
         </div>
 
@@ -173,38 +195,38 @@ function FinishedMatchCard({ match }: MatchCardProps) {
 
       <div className="grid grid-cols-7 items-center justify-between my-2 relative z-10">
         <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-lg font-bold text-[var(--primary)] border border-[var(--border)]">
-            {teamAvatar(mockMatch.homeTeam)}
+          <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)]">
+            {match.homeTeam.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-xs font-bold text-[var(--foreground)]/80 truncate max-w-full px-1">
-            {mockMatch.homeTeam}
+            {match.homeTeam}
           </span>
         </div>
 
         <div className="col-span-1 flex items-center justify-center">
           <div className="font-secondary-modak flex items-baseline justify-center gap-1 text-4xl font-black text-[var(--primary)] tracking-tight tabular-nums">
-            <span>{mockMatch.homeScore}</span>
+            <span>{homeScore}</span>
             <span className="text-slate-300 font-light text-2xl -translate-y-0.5">:</span>
-            <span>{mockMatch.awayScore}</span>
+            <span>{awayScore}</span>
           </div>
         </div>
 
         <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-lg font-bold text-[var(--primary)] border border-[var(--border)]">
-            {teamAvatar(mockMatch.awayTeam)}
+          <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)]">
+            {match.awayTeam.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-xs font-bold text-[var(--foreground)]/80 truncate max-w-full px-1">
-            {mockMatch.awayTeam}
+            {match.awayTeam}
           </span>
         </div>
       </div>
 
-      {isExpanded && mockMatch.events.length > 0 && (
-        <div 
+      {isExpanded && events.length > 0 && (
+        <div
           onClick={(e) => e.stopPropagation()}
           className="border-t border-[var(--border)] mt-4 pt-4 text-[11px] text-[var(--foreground)]/60 space-y-2.5 animate-select-dropdown"
         >
-          {mockMatch.events.map((evento, idx) => (
+          {events.map((evento, idx) => (
             <div key={idx} className="grid grid-cols-2 gap-4">
               <div className="text-left pl-1 min-h-[16px]">
                 {evento.team === "home" && (
@@ -232,9 +254,16 @@ function FinishedMatchCard({ match }: MatchCardProps) {
 // SUBCOMPONENTE 3: PARTIDO PRÓXIMO (NUEVO ESTILO AMARILLO/DORADO)
 // ==========================================
 function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
+  // onAction solo llega en el SIGUIENTE partido por jugar: hace la tarjeta
+  // tappable para iniciar su espera. Sin onAction, es solo informativa.
+  // No se toca ningún estilo: el div raíz es visualmente idéntico.
   return (
-    <div className="w-full bg-[var(--card-strong)] border border-[var(--border)] hover:border-amber-300 rounded-3xl p-5 shadow-[0_4px_20px_rgba(16,32,76,0.02)] hover:shadow-[0_8px_24px_rgba(217,119,6,0.05)] transition-all duration-300 group">
-      
+    <div
+      onClick={onAction}
+      role={onAction ? "button" : undefined}
+      className="w-full bg-[var(--card-strong)] border border-[var(--border)] hover:border-amber-300 rounded-3xl p-5 shadow-[0_4px_20px_rgba(16,32,76,0.02)] hover:shadow-[0_8px_24px_rgba(217,119,6,0.05)] transition-all duration-300 group"
+    >
+
       <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-4">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-bold text-[var(--foreground)]/50">
@@ -255,8 +284,8 @@ function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
 
       <div className="flex items-center justify-between gap-4 bg-[var(--background)]/40 border border-[var(--border)] group-hover:border-amber-200/50 rounded-2xl px-4 py-3 relative z-10 transition-colors duration-300">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-lg font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
-            {teamAvatar(match.homeTeam)}
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
+            {match.homeTeam.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-sm font-bold text-[var(--foreground)]/80 truncate">
             {match.homeTeam}
@@ -269,22 +298,11 @@ function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
           <span className="text-sm font-bold text-[var(--foreground)]/80 truncate">
             {match.awayTeam}
           </span>
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-lg font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
-            {teamAvatar(match.awayTeam)}
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
+            {match.awayTeam.substring(0, 2).toUpperCase()}
           </div>
         </div>
       </div>
-
-      {/* CTA: solo el SIGUIENTE partido de la cancha puede iniciar su espera */}
-      {onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          className="mt-4 w-full rounded-full bg-[#233c97] hover:bg-[#1a2e7a] text-white text-xs font-bold py-3 shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
-        >
-          Iniciar espera de equipos (6 min)
-        </button>
-      )}
     </div>
   );
 }
