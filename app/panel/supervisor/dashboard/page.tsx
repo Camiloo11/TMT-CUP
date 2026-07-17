@@ -179,8 +179,17 @@ function readControlBackup(): PersistedControl | null {
   }
 }
 
+// ⚠️ VALORES DE PRUEBA (Simón): para el DÍA REAL del torneo deben volver a
+//    matchDuration = 26 * 60 y waitingDuration = 6 * 60.
 const matchDuration = 0.1 * 60;
 const waitingDuration = 0.1 * 60;
+
+// Etiquetas de eventos para chips y toasts (con género gramatical correcto)
+const EVENT_LABEL: Record<EventKind, { icon: string; noun: string; added: string; removed: string }> = {
+  goal: { icon: "⚽", noun: "gol", added: "Gol registrado a", removed: "Gol eliminado de" },
+  yellow: { icon: "🟨", noun: "amarilla", added: "Amarilla registrada a", removed: "Amarilla eliminada de" },
+  red: { icon: "🟥", noun: "roja", added: "Roja registrada a", removed: "Roja retirada a" },
+};
 
 function createEmptyEvents() {
   return { home: {}, away: {} } as Record<TeamSide, Record<string, LiveEvent[]>>;
@@ -313,6 +322,21 @@ export default function SupervisorPage() {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
   const [restored, setRestored] = useState(false);
+
+  // ── Toast superior (reemplaza los popups nativos del navegador) ──
+  const [toast, setToast] = useState<{ id: number; text: string; kind: "ok" | "err" } | null>(null);
+  function notify(text: string, kind: "ok" | "err" = "ok") {
+    // eslint-disable-next-line react-hooks/purity -- corre solo en handlers (id único del toast), nunca en render
+    setToast({ id: Date.now(), text, kind });
+  }
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Confirmación personalizada del pitazo final (nada de window.confirm)
+  const [confirmFinish, setConfirmFinish] = useState(false);
 
   const score = countGoals(eventsByTeam);
 
@@ -493,11 +517,11 @@ export default function SupervisorPage() {
     const apiMatch = apiMatches.find((m) => String(m.id) === card.id);
     if (!apiMatch) return;
     if (!apiMatch.team_a_id || !apiMatch.team_b_id) {
-      alert("Este partido aún no tiene equipos definidos (se llenan al cerrar la fase anterior).");
+      notify("Este partido aún no tiene equipos definidos (se llenan al cerrar la fase anterior)", "err");
       return;
     }
     if (apiMatch.published_at) {
-      alert("El acta de este partido ya fue publicada: solo un administrador puede modificarla.");
+      notify("El acta ya fue publicada: solo un administrador puede modificarla", "err");
       return;
     }
     setBusyAction(true);
@@ -512,7 +536,7 @@ export default function SupervisorPage() {
       if (status === "PROGRAMADO") {
         const { ok, data } = await lifecycleActionFor(apiMatch.id, "start_waiting");
         if (!ok) {
-          alert(data?.error ?? "No se pudo iniciar la espera");
+          notify(data?.error ?? "No se pudo iniciar la espera", "err");
           return;
         }
         status = "EN_ESPERA";
@@ -570,7 +594,7 @@ export default function SupervisorPage() {
     if (presence[team] || !matchDbId || busyAction) return;
     const { ok, data } = await lifecycleAction("team_present", { team: team === "home" ? "A" : "B" });
     if (!ok) {
-      alert(data?.error ?? "No se pudo registrar la llegada del equipo");
+      notify(data?.error ?? "No se pudo registrar la llegada del equipo", "err");
       return;
     }
     setPresence((current) => ({ ...current, [team]: true }));
@@ -579,7 +603,22 @@ export default function SupervisorPage() {
   // Registra el evento localmente y lo sincroniza con el servidor. Al confirmar,
   // reemplaza el id local por el id real del servidor (para poder quitarlo luego).
   function registerEvent(team: TeamSide, playerId: string, kind: EventKind) {
+    const player = rosters[team].find((p) => p.id === playerId);
+    const name = player?.name ?? "el jugador";
+
+    // Bloqueo disciplinario: expulsado en este partido o suspendido de antes
+    const hasRedHere = (eventsByTeam[team][playerId] ?? []).some((e) => e.kind === "red");
+    if (hasRedHere) {
+      notify(`🟥 ${name} está expulsado: no se le pueden registrar más eventos`, "err");
+      return;
+    }
+    if (player?.suspended) {
+      notify(`⛔ ${name} está suspendido por sanción: no puede jugar este partido`, "err");
+      return;
+    }
+
     const minute = Math.max(1, Math.ceil((matchDuration - liveSeconds) / 60));
+    // eslint-disable-next-line react-hooks/purity -- corre solo en el handler del botón "+", nunca en render
     const localId = `${playerId}-${kind}-${Date.now()}`;
     const event: LiveEvent = { id: localId, playerId, team, kind, minute };
 
@@ -590,6 +629,13 @@ export default function SupervisorPage() {
         [playerId]: [...(current[team][playerId] ?? []), event],
       },
     }));
+
+    const { icon, added } = EVENT_LABEL[kind];
+    notify(
+      kind === "red"
+        ? `${icon} Roja registrada a ${name} — jugador bloqueado por expulsión`
+        : `${icon} ${added} ${name} (min ${minute})`
+    );
 
     const teamId = teamIds[team];
     if (matchDbId && teamId) {
@@ -602,7 +648,7 @@ export default function SupervisorPage() {
         .then(async (res) => {
           const created = await res.json().catch(() => null);
           if (!res.ok) {
-            alert(`El evento quedó guardado localmente pero no se sincronizó: ${created?.error ?? `error ${res.status}`}`);
+            notify(`El evento quedó local pero no se sincronizó: ${created?.error ?? `error ${res.status}`}`, "err");
             return;
           }
           // Reemplaza el id local por el id real del servidor
@@ -619,19 +665,26 @@ export default function SupervisorPage() {
           }
         })
         .catch(() => {
-          alert("Sin conexión: el evento quedó guardado localmente y saldrá en el acta.");
+          notify("Sin conexión: el evento quedó guardado localmente y saldrá en el acta.", "err");
         });
     }
   }
 
   // Quita el ÚLTIMO evento de ese tipo del jugador (local + servidor si ya se sincronizó)
   function removeEvent(team: TeamSide, playerId: string, kind: EventKind) {
+    const player = rosters[team].find((p) => p.id === playerId);
+    const name = player?.name ?? "el jugador";
+    const { icon, noun, removed } = EVENT_LABEL[kind];
+
     const list = eventsByTeam[team][playerId] ?? [];
     let idx = -1;
     for (let i = list.length - 1; i >= 0; i--) {
       if (list[i].kind === kind) { idx = i; break; }
     }
-    if (idx === -1) return;
+    if (idx === -1) {
+      notify(`${name} no tiene ${noun} para quitar`, "err");
+      return;
+    }
     const target = list[idx];
 
     setEventsByTeam((current) => {
@@ -641,6 +694,12 @@ export default function SupervisorPage() {
         [team]: { ...current[team], [playerId]: arr.filter((e) => e.id !== target.id) },
       };
     });
+
+    notify(
+      kind === "red"
+        ? `${icon} Roja retirada a ${name} — jugador desbloqueado`
+        : `${icon} ${removed} ${name}`
+    );
 
     // Solo los eventos ya sincronizados tienen id numérico del servidor
     if (matchDbId && /^\d+$/.test(target.id)) {
@@ -680,7 +739,7 @@ export default function SupervisorPage() {
       if (waitingSeconds === 0 && presenceCount < 2) {
         const { ok, data } = await lifecycleAction("declare_walkover");
         if (!ok) {
-          alert(data?.error ?? "No se pudo declarar el walkover");
+          notify(data?.error ?? "No se pudo declarar el walkover", "err");
           return;
         }
         const walkover = presenceCount === 0
@@ -701,13 +760,13 @@ export default function SupervisorPage() {
       }
 
       if (presenceCount < 2) {
-        alert("Ambos equipos deben estar marcados como presentes para el kickoff.");
+        notify("Ambos equipos deben estar marcados como presentes para el kickoff", "err");
         return;
       }
 
       const { ok, data } = await lifecycleAction("kickoff");
       if (!ok) {
-        alert(data?.error ?? "No se pudo iniciar el partido");
+        notify(data?.error ?? "No se pudo iniciar el partido", "err");
         return;
       }
       setLiveSeconds(matchDuration);
@@ -724,7 +783,7 @@ export default function SupervisorPage() {
     try {
       const { ok, data } = await lifecycleAction("finish");
       if (!ok) {
-        alert(data?.error ?? "No se pudo finalizar el partido");
+        notify(data?.error ?? "No se pudo finalizar el partido", "err");
         return;
       }
       setReport(
@@ -750,7 +809,7 @@ export default function SupervisorPage() {
       try {
         const { ok, data } = await lifecycleAction("publish");
         if (!ok) {
-          alert(data?.error ?? "No se pudo enviar el acta");
+          notify(data?.error ?? "No se pudo enviar el acta", "err");
           return;
         }
       } finally {
@@ -793,7 +852,40 @@ export default function SupervisorPage() {
         .animate-slide-up {
           animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+        @keyframes toastIn {
+          from {
+            transform: translateY(-16px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-toast-in {
+          animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
       `}</style>
+
+      {/* TOAST SUPERIOR: confirmación de cada acción (sin popups del navegador) */}
+      {toast && (
+        <div key={toast.id} className="fixed top-4 inset-x-4 z-[70] mx-auto max-w-sm animate-toast-in pointer-events-none">
+          <div
+            className={`rounded-2xl bg-white/85 backdrop-blur-xl border border-white/40 shadow-[0_15px_35px_rgba(16,32,76,0.18)] px-4 py-3 flex items-center gap-2.5 relative overflow-hidden before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 ${
+              toast.kind === "ok" ? "before:bg-emerald-500" : "before:bg-red-500"
+            }`}
+          >
+            <span
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 ${
+                toast.kind === "ok" ? "bg-emerald-500" : "bg-red-500"
+              }`}
+            >
+              {toast.kind === "ok" ? "✓" : "!"}
+            </span>
+            <p className="text-xs font-semibold text-[#10204c]/90 leading-snug">{toast.text}</p>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 px-4 py-5 text-[15px] text-slate-800 sm:px-6 sm:py-6 md:px-8">
         <div className="mx-auto flex w-full flex-col gap-5 sm:gap-6">
@@ -1088,18 +1180,44 @@ export default function SupervisorPage() {
                     <div className="space-y-2.5">
                       {team.players.map((player) => {
                         const isOpen = openEventMenu?.playerId === player.id && openEventMenu.team === team.side;
+                        const playerEvents = eventsByTeam[team.side][player.id] ?? [];
+                        // Roja en ESTE partido → tarjeta opacada y sin poder agregar
+                        const sentOff = playerEvents.some((e) => e.kind === "red");
+                        const blocked = sentOff || !!player.suspended;
                         return (
-                          <div key={player.id} className="rounded-[1.25rem] border border-slate-200 bg-white px-2.5 py-3 flex flex-col gap-2 transition-all w-full overflow-hidden sm:px-3.5">
+                          <div key={player.id} className={`rounded-[1.25rem] border border-slate-200 bg-white px-2.5 py-3 flex flex-col gap-2 transition-all w-full overflow-hidden sm:px-3.5 ${blocked ? "opacity-50 grayscale-[0.6] bg-slate-100" : ""}`}>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-semibold text-slate-800 truncate pr-2">{player.name}</span>
+                              <span className="text-sm font-semibold text-slate-800 truncate pr-2">
+                                {player.name}
+                                {blocked && (
+                                  <span className="ml-2 align-middle text-[9px] font-black tracking-wider text-red-600">
+                                    {sentOff ? "🟥 EXPULSADO" : "⛔ SUSPENDIDO"}
+                                  </span>
+                                )}
+                              </span>
                               <button
                                 type="button"
+                                disabled={!!player.suspended}
                                 onClick={() => setOpenEventMenu(isOpen ? null : { team: team.side, playerId: player.id })}
-                                className="h-9 w-9 rounded-full bg-[#10204c]/5 hover:bg-[#10204c]/10 text-[#10204c] flex items-center justify-center transition-all shrink-0"
+                                className="h-9 w-9 rounded-full bg-[#10204c]/5 hover:bg-[#10204c]/10 text-[#10204c] flex items-center justify-center transition-all shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                               >
                                 <svg className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                               </button>
                             </div>
+
+                            {/* Línea de tiempo del jugador: sus eventos con el minuto */}
+                            {playerEvents.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {playerEvents.map((ev) => (
+                                  <span
+                                    key={ev.id}
+                                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 select-none"
+                                  >
+                                    {EVENT_LABEL[ev.kind].icon} {ev.minute}&apos;
+                                  </span>
+                                ))}
+                              </div>
+                            )}
 
                             {isOpen && (
                               <div className="flex flex-wrap gap-1.5 mt-2 w-full justify-center items-center">
@@ -1119,8 +1237,9 @@ export default function SupervisorPage() {
                                     <span className="text-[11px] select-none shrink-0 sm:text-xs">{act.icon}</span>
                                     <button
                                       type="button"
+                                      disabled={blocked}
                                       onClick={() => registerEvent(team.side, player.id, act.type as EventKind)}
-                                      className="w-5 h-5 rounded-full bg-white hover:bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-300/40 active:scale-90 transition-transform shrink-0 sm:w-6 sm:h-6 sm:text-sm"
+                                      className="w-5 h-5 rounded-full bg-white hover:bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-xs shadow-xs border border-slate-300/40 active:scale-90 transition-transform shrink-0 sm:w-6 sm:h-6 sm:text-sm disabled:opacity-30 disabled:pointer-events-none"
                                     >
                                       <span className="leading-none mt-[-1px]">+</span>
                                     </button>
@@ -1143,7 +1262,7 @@ export default function SupervisorPage() {
                       atado a que el cronómetro llegue a 0). Mismo estilo. */}
                   <button
                     type="button"
-                    onClick={triggerManualFinish}
+                    onClick={() => setConfirmFinish(true)}
                     className="animate-slide-up w-full h-14 rounded-full bg-[#10204c] text-white font-bold text-sm shadow-[0_8px_30px_rgba(16,32,76,0.3)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
                   >
                     Finalizar encuentro
@@ -1275,6 +1394,42 @@ export default function SupervisorPage() {
                   className="h-11 rounded-full bg-red-600 px-6 text-xs font-semibold text-white shadow-md sm:h-12 sm:px-8 sm:text-sm"
                 >
                   Guardar nota del incidente
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONFIRMACIÓN PERSONALIZADA DEL PITAZO FINAL */}
+        {confirmFinish && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-[#10204c]/10 text-[#10204c] flex items-center justify-center text-3xl">
+                ⏱️
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-[#10204c]">¿Finalizar el encuentro?</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Se cierra el partido con el marcador {score.home} - {score.away} y pasa al resumen del acta.
+                </p>
+              </div>
+              <div className="w-full flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmFinish(false)}
+                  className="flex-1 h-12 rounded-full border-2 border-[#10204c]/15 bg-white text-[#10204c] text-sm font-bold transition-all active:scale-[0.98]"
+                >
+                  Seguir jugando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmFinish(false);
+                    void triggerManualFinish();
+                  }}
+                  className="flex-1 h-12 rounded-full bg-[#10204c] text-white text-sm font-bold shadow-md transition-all active:scale-[0.98]"
+                >
+                  Finalizar
                 </button>
               </div>
             </div>
