@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
@@ -243,36 +243,67 @@ export default function PublicLivePage() {
   const carruselRef = useRef<HTMLDivElement>(null);
 
   // ── Funciones de carga de datos ──
+  // Guardas Array.isArray: si un API responde {error}, la vista degrada con
+  // listas vacías en vez de reventar entera (".filter of non-array").
   const fetchMatches = () => {
     fetch("/api/matches")
       .then((r) => r.json())
-      .then(setLiveMatches)
+      .then((d) => setLiveMatches(Array.isArray(d) ? d : []))
       .catch(console.error);
   };
 
   const fetchStandings = () => {
     fetch("/api/standings")
       .then((r) => r.json())
-      .then(setStandings)
+      .then((d) => setStandings(Array.isArray(d) ? d : []))
       .catch(console.error);
   };
 
   const fetchBrackets = () => {
     fetch("/api/brackets")
       .then((r) => r.json())
-      .then(setBracket)
+      .then((d) => setBracket(d && typeof d === "object" && !("error" in d) ? d : null))
       .catch(console.error);
   };
 
-  // ── Suscripción en Tiempo Real vía WebSockets ──
+  // ── Suscripción en Tiempo Real vía WebSockets (con respaldo de sondeo) ──
+  // El evento de Realtime es solo un "timbre": los datos SIEMPRE se recargan
+  // por los APIs del servidor. Si el websocket no está disponible (faltan las
+  // variables públicas, Realtime caído, red del colegio bloqueando WS...),
+  // la vista sigue viva sondeando cada 15 segundos.
   useEffect(() => {
     // 1. Carga inicial
     fetchMatches();
     fetchStandings();
     fetchBrackets();
 
-    // 2. Conexión Realtime
-    const supabase = getSupabase();
+    let disposed = false;
+    let poller: number | null = null;
+    const startPolling = () => {
+      if (disposed || poller != null) return;
+      poller = window.setInterval(() => {
+        fetchMatches();
+        fetchStandings();
+        fetchBrackets();
+      }, 15000);
+    };
+    const stopPolling = () => {
+      if (poller != null) {
+        window.clearInterval(poller);
+        poller = null;
+      }
+    };
+
+    // 2. Conexión Realtime con la llave PÚBLICA (anon) del navegador.
+    //    (El cliente de servidor con service_role jamás debe llegar aquí.)
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      startPolling();
+      return () => {
+        disposed = true;
+        stopPolling();
+      };
+    }
 
     const channel = supabase
       .channel("public-live-updates")
@@ -282,6 +313,7 @@ export default function PublicLivePage() {
         () => {
           fetchMatches();
           fetchStandings();
+          fetchBrackets();
         }
       )
       .on(
@@ -289,13 +321,23 @@ export default function PublicLivePage() {
         { event: "*", schema: "public", table: "match_events" },
         () => {
           fetchMatches();
+          fetchStandings();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (disposed) return;
+        // Conectado: los websockets mandan; sin sondeo duplicado
+        if (status === "SUBSCRIBED") stopPolling();
+        // Canal caído: el sondeo mantiene la vista al día igual
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") startPolling();
+      });
 
     return () => {
+      disposed = true;
+      stopPolling();
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- suscripción única al montar
   }, []);
 
   const irAVista = (index: number) => {
