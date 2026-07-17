@@ -79,9 +79,11 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen flex-col bg-[color:var(--background)]">
       <HeaderSupervisor />
 
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        {/* Contenedor Card Principal Estético */}
-        <div className="flex flex-col-reverse md:flex-row bg-white rounded-3xl w-full max-w-4xl border border-[color:var(--border)] shadow-[0_20px_50px_rgba(35,60,151,0.08)] overflow-hidden my-6">
+      {/* Cambiado: Se quitan clases de centrado rígido de main y se añade un PT adecuado al tamaño real del header con el logo */}
+      <main className="flex-1 flex flex-col p-4 sm:p-6 pt-[100px] min-[425px]:pt-[110px] md:pt-[140px] lg:pt-[200px]">
+        
+        {/* Contenedor Card Principal Estético - mt-auto mb-auto centra verticalmente de forma dinámica en el espacio restante */}
+        <div className="flex flex-col-reverse md:flex-row bg-white rounded-3xl w-full max-w-4xl border border-[color:var(--border)] shadow-[0_20px_50px_rgba(35,60,151,0.08)] overflow-hidden my-6 mt-auto mb-auto mx-auto">
           
           {/* Lado del Formulario (Izquierda) */}
           <div className="p-8 sm:p-12 md:p-16 w-full md:w-1/2 flex flex-col justify-center">
