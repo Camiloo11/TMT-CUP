@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { fetchSessionUser } from "@/lib/session-client";
 
 // ── Tipos ──────────────────────────────────────────────────
 type IncidentSeverity = "Baja" | "Media" | "Alta" | "Crítica";
 type IncidentStatus = "PENDIENTE" | "EN_REVISION" | "RESUELTO";
+
+// Jugadores reales (Supabase) para la pestaña de nómina
+type AdminPlayer = {
+  id: number;
+  name: string;
+  document?: string | null;
+  team_id: number;
+  team: { id: number; name: string } | null;
+};
+
+type AdminTeam = { id: number; name: string; category: "MASCULINO" | "FEMENINO" };
 
 type Incident = {
   id: number;
@@ -56,10 +69,35 @@ type AuditLog = {
 };
 
 export default function AdminSupervisorPage() {
+  const router = useRouter();
+
   // ── Buscador Global y Filtros ──────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [generoFiltro, setGeneroFiltro] = useState<"todos" | "masculino" | "femenino">("todos");
-  const [vistaActiva, setVistaActiva] = useState<"columnas" | "historial">("columnas");
+  const [vistaActiva, setVistaActiva] = useState<"columnas" | "historial" | "jugadores">("columnas");
+
+  // Guard: esta mesa es SOLO para administradores (redirige, sin tocar el diseño)
+  useEffect(() => {
+    fetchSessionUser()
+      .then((u) => {
+        if (u?.role !== "ADMIN") router.replace("/panel");
+      })
+      .catch(() => router.replace("/panel"));
+  }, [router]);
+
+  // ── Nómina real de jugadores (Supabase vía /api/players y /api/teams) ──
+  const [players, setPlayers] = useState<AdminPlayer[]>([]);
+  const [teams, setTeams] = useState<AdminTeam[]>([]);
+  useEffect(() => {
+    fetch("/api/players")
+      .then((r) => r.json())
+      .then((d) => setPlayers(Array.isArray(d) ? d : []))
+      .catch(() => setPlayers([]));
+    fetch("/api/teams")
+      .then((r) => r.json())
+      .then((d) => setTeams(Array.isArray(d) ? d : []))
+      .catch(() => setTeams([]));
+  }, []);
 
   // ── 1. Incidentes en Tiempo Real ───────────────────────────
   const [incidents, setIncidents] = useState<Incident[]>([
@@ -248,6 +286,25 @@ export default function AdminSupervisorPage() {
     });
   };
 
+  // Nómina agrupada por equipo, respetando el buscador y el filtro de género
+  const equiposConJugadores = teams
+    .filter((t) =>
+      generoFiltro === "todos" ||
+      t.category === (generoFiltro === "masculino" ? "MASCULINO" : "FEMENINO")
+    )
+    .map((t) => ({
+      team: t,
+      jugadores: players.filter(
+        (p) =>
+          p.team_id === t.id &&
+          (searchQuery === "" ||
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.document ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      ),
+    }))
+    .filter((g) => g.jugadores.length > 0 || searchQuery === "");
+
   // Filtrado general de partidos
   const actasFiltradas = actas.filter((a) => {
     const coincideGenero = generoFiltro === "todos" || a.gender === generoFiltro;
@@ -301,6 +358,17 @@ export default function AdminSupervisorPage() {
           >
             <span className="material-symbols-outlined !text-[15px]">dashboard</span>
             <span>Tablero Principal</span>
+          </button>
+          <button
+            onClick={() => setVistaActiva("jugadores")}
+            className={`px-3 py-1 rounded-lg text-[10px] min-[375px]:text-xs font-semibold transition-all flex items-center gap-1 ${
+              vistaActiva === "jugadores"
+                ? "bg-white text-[var(--primary)] shadow-xs"
+                : "opacity-60 hover:opacity-100"
+            }`}
+          >
+            <span className="material-symbols-outlined !text-[15px]">groups</span>
+            <span>Jugadores ({players.length})</span>
           </button>
           <button
             onClick={() => setVistaActiva("historial")}
@@ -410,14 +478,14 @@ export default function AdminSupervisorPage() {
                       >
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="font-bold uppercase tracking-wider">
-                            Cancha {inc.fieldNumber} • Min {inc.minute}'
+                            Cancha {inc.fieldNumber} • Min {inc.minute}&apos;
                           </span>
                           <span className="font-semibold">{inc.timestamp} hs</span>
                         </div>
 
                         <p className="text-xs font-semibold leading-tight">{inc.matchTitle}</p>
                         <p className="text-[11px] opacity-90 leading-relaxed bg-white/60 p-2 rounded-xl">
-                          "{inc.description}"
+                          &quot;{inc.description}&quot;
                         </p>
 
                         <div className="flex items-center justify-between pt-1 border-t border-black/5 text-[10px]">
@@ -514,7 +582,7 @@ export default function AdminSupervisorPage() {
                               className="px-2 py-0.5 rounded-lg bg-white border border-[var(--border)] flex items-center gap-1 font-medium"
                             >
                               <span>{ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}</span>
-                              <span>{ev.player} ({ev.minute}')</span>
+                              <span>{ev.player} ({ev.minute}&apos;)</span>
                             </span>
                           ))
                         )}
@@ -523,7 +591,7 @@ export default function AdminSupervisorPage() {
                       {/* Observaciones del Supervisor */}
                       {acta.incidentsNotes && (
                         <p className="text-[10px] italic opacity-70 bg-gray-100/70 p-1.5 rounded-lg">
-                          Nota supervisor: "{acta.incidentsNotes}"
+                          Nota supervisor: &quot;{acta.incidentsNotes}&quot;
                         </p>
                       )}
 
@@ -548,6 +616,63 @@ export default function AdminSupervisorPage() {
               </div>
             </section>
           </div>
+        ) : vistaActiva === "jugadores" ? (
+          /* ────────────────────────────────────────────────────────── */
+          /* VISTA DE JUGADORES INSCRITOS (nómina real desde Supabase)  */
+          /* ────────────────────────────────────────────────────────── */
+          <section className="bg-[var(--card-strong)] rounded-3xl p-4 md:p-6 border border-[var(--border)] shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <div>
+                <h2 className="text-base font-bold text-[var(--primary)] flex items-center gap-2">
+                  <span className="material-symbols-outlined">groups</span>
+                  Jugadores Inscritos ({players.length})
+                </h2>
+                <p className="text-xs opacity-60">
+                  Nómina oficial por equipo, directa de la base de datos.
+                </p>
+              </div>
+            </div>
+
+            {players.length === 0 ? (
+              <p className="text-xs text-center py-10 opacity-50">
+                Aún no hay jugadores registrados en la base de datos.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {equiposConJugadores.map(({ team, jugadores }) => (
+                  <div
+                    key={team.id}
+                    className="rounded-2xl bg-[var(--background)] border border-[var(--border)] p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                      <span className="text-xs font-bold truncate">{team.name}</span>
+                      <span
+                        className={`text-[9px] px-2 py-0.5 rounded-full font-bold text-white shrink-0 ${
+                          team.category === "FEMENINO" ? "bg-[#7c3aed]" : "bg-[#233c97]"
+                        }`}
+                      >
+                        {team.category === "FEMENINO" ? "FEM" : "MASC"} · {jugadores.length}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {jugadores.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between text-xs py-1 px-1.5 rounded-lg hover:bg-white/60"
+                        >
+                          <span className="truncate pr-2">{p.name}</span>
+                          <span className="text-[10px] opacity-50 shrink-0">{p.document || "—"}</span>
+                        </div>
+                      ))}
+                      {jugadores.length === 0 && (
+                        <p className="text-[10px] opacity-40 italic py-1">Sin coincidencias con la búsqueda.</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         ) : (
           /* ────────────────────────────────────────────────────────── */
           /* VISTA DE HISTORIAL DE CAMBIOS Y AUDITORÍA DE ADMINS        */
@@ -670,7 +795,7 @@ export default function AdminSupervisorPage() {
                     >
                       <span>
                         {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}{" "}
-                        <strong>{ev.player}</strong> (Min {ev.minute}') -{" "}
+                        <strong>{ev.player}</strong> (Min {ev.minute}&apos;) -{" "}
                         {ev.team === "A" ? actaEdicion.teamA : actaEdicion.teamB}
                       </span>
                       <button
