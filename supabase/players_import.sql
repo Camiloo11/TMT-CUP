@@ -4,6 +4,12 @@
 -- Idempotente: no duplica si ya existe (mismo nombre + equipo).
 -- ============================================================
 
+-- Corrección: el 4º equipo femenino es España, no Colombia (error del
+-- seed original). Los partidos femeninos referencian al equipo por ID,
+-- así que al renombrarlo el fixture femenino queda coherente solo.
+update teams set name = 'España'
+where category = 'FEMENINO' and name = 'Colombia';
+
 -- Documento (cédula) del jugador, opcional
 alter table players add column if not exists document text;
 
@@ -123,21 +129,6 @@ join teams t on t.name = v.team and t.category = v.category::category
 where not exists (
   select 1 from players p where p.name = v.name and p.team_id = t.id
 );
-
--- ⚠️ DISCREPANCIA FEMENINO: el CSV trae 6 jugadoras de "España" (femenino),
--- pero en la BD el 4º equipo femenino es "Colombia" (Colombia, Francia,
--- Cabo Verde, Portugal). Esas 6 jugadoras NO se importaron por no tener
--- equipo. Elige UNA opción y descoméntala:
---
--- OPCIÓN A — el equipo femenino correcto es España (renombrar Colombia→España):
---   update teams set name = 'España'
---   where category = 'FEMENINO' and name = 'Colombia';
---   -- luego vuelve a correr este archivo para que entren las 6 jugadoras.
---
--- OPCIÓN B — agregar España como 5º equipo femenino (deja también a Colombia):
---   insert into teams (name, category, group_id)
---   select 'España', 'FEMENINO', id from groups where name = 'F';
---   -- luego vuelve a correr este archivo.
 
 -- Verificación: jugadores por equipo
 select t.category, t.name as equipo, count(p.id) as jugadores

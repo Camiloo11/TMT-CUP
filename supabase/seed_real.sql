@@ -36,7 +36,7 @@ join groups g on g.name = v.grp;
 -- 3) Equipos femeninos (4, grupo F / cancha 4)
 insert into teams (name, category, group_id)
 select v.name, 'FEMENINO'::category, g.id
-from (values ('Colombia'), ('Francia'), ('Cabo Verde'), ('Portugal')) as v(name)
+from (values ('España'), ('Francia'), ('Cabo Verde'), ('Portugal')) as v(name)
 cross join (select id from groups where name = 'F') g;
 
 -- 4) Partidos de grupos: cruces y horas EXACTOS del Excel
@@ -63,11 +63,11 @@ from (values
   ('MASCULINO',3,4,'Cabo Verde','Inglaterra'),
   ('MASCULINO',3,5,'Cabo Verde','Portugal'),
   ('MASCULINO',3,6,'Congo','Inglaterra'),
-  ('FEMENINO',4,1,'Colombia','Francia'),
+  ('FEMENINO',4,1,'España','Francia'),
   ('FEMENINO',4,2,'Cabo Verde','Portugal'),
-  ('FEMENINO',4,3,'Portugal','Colombia'),
+  ('FEMENINO',4,3,'Portugal','España'),
   ('FEMENINO',4,4,'Francia','Cabo Verde'),
-  ('FEMENINO',4,5,'Colombia','Cabo Verde'),
+  ('FEMENINO',4,5,'España','Cabo Verde'),
   ('FEMENINO',4,6,'Portugal','Francia')
 ) as fx(cat, field, jornada, home, away)
 join teams ha on ha.name = fx.home and ha.category = fx.cat::category
