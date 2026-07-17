@@ -179,8 +179,8 @@ function readControlBackup(): PersistedControl | null {
   }
 }
 
-const matchDuration = 26 * 60;
-const waitingDuration = 6 * 60;
+const matchDuration = 0.1 * 60;
+const waitingDuration = 0.1 * 60;
 
 function createEmptyEvents() {
   return { home: {}, away: {} } as Record<TeamSide, Record<string, LiveEvent[]>>;
@@ -771,6 +771,12 @@ export default function SupervisorPage() {
     if (fieldNumber) await loadField(fieldNumber);
   }
 
+  async function handleLogout() {
+    clearSupervisorCache(); // Limpia el partido guardado en el dispositivo
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null); // Destruye las cookies en el servidor
+    window.location.href = "/panel"; // Redirige al login limpiando el estado global
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <style jsx global>{`
@@ -912,6 +918,30 @@ export default function SupervisorPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+              {/* BOTÓN FLOTANTE CERRAR SESIÓN (Solo Dashboard - Rojo) */}
+              <div className="fixed bottom-6 right-6 z-40">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="h-14 w-14 shrink-0 rounded-full bg-red-600 text-white shadow-[0_8px_30px_rgba(220,38,38,0.4)] flex items-center justify-center border border-white/20 active:scale-95 transition-all duration-200"
+                  aria-label="Cerrar sesión"
+                  title="Cerrar sesión"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </button>
               </div>
             </section>
           )}

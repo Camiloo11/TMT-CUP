@@ -204,9 +204,9 @@ export default function AdminLoginPage() {
               src="/assets/ImageLogin.png"
               alt="TMT CUP Ilustración Login"
               fill
-              priority
               className="object-cover object-bottom md:object-[center_80%]"
               sizes="(max-width: 768px) 100vw, 50vw"
+              loading="eager"
             />
           </div>
 
