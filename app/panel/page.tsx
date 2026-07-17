@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import HeaderSupervisor from "@/app/components/HeaderSupervisor";
+import HeaderSupervisor from "@/app/components/HeaderStaff";
 import Footer from "@/app/components/Footer";
 import { fetchSessionUser, REMEMBERED_EMAIL_KEY } from "@/lib/session-client";
 
