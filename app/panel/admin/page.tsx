@@ -52,6 +52,26 @@ type ApiAdminMatch = {
   incidents?: Array<{ id: number; type: string; note: string | null }>;
 };
 
+// PATCH con reintento de sesión: si el access token expiró (401), lo renueva
+// con /api/auth/refresh y reintenta UNA vez. Arregla los 401 de tMt/registro
+// cuando la mesa admin lleva un rato abierta.
+async function patchAuth(url: string, body: unknown): Promise<Response> {
+  const doFetch = () =>
+    fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  let res = await doFetch();
+  if (res.status === 401) {
+    const refreshed = await fetch("/api/auth/refresh", { method: "POST" })
+      .then((r) => r.ok)
+      .catch(() => false);
+    if (refreshed) res = await doFetch();
+  }
+  return res;
+}
+
 // ── Componente Principal ────────────────────────────────────
 
 export default function AdminSupervisorPage() {
@@ -181,10 +201,7 @@ export default function AdminSupervisorPage() {
     setGuardandoActa(true);
     setErrorGuardado(null);
     try {
-      const res = await fetch(`/api/matches/${actaEdicion.id}/acta`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await patchAuth(`/api/matches/${actaEdicion.id}/acta`, {
           scoreA: actaEdicion.scoreA,
           scoreB: actaEdicion.scoreB,
           incidentNote: actaEdicion.incidentsNotes ?? "",
@@ -194,7 +211,6 @@ export default function AdminSupervisorPage() {
             side: ev.team,
             player: ev.player,
           })),
-        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -293,31 +309,19 @@ export default function AdminSupervisorPage() {
     const nuevo = players.find((p) => p.id === playerId)?.tmt_status === value ? null : value;
     setPlayers((prev) => prev.map((p) => (p.id === playerId ? { ...p, tmt_status: nuevo } : p)));
     setOpenTmtPlayer(null);
-    fetch(`/api/players/${playerId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tmtStatus: nuevo }),
-    }).catch(() => { });
+    patchAuth(`/api/players/${playerId}`, { tmtStatus: nuevo }).catch(() => { });
   };
 
   // Asistencia (check del registro) persistida en players.attended
   const marcarAsistencia = (playerId: number, attended: boolean) => {
     setPlayers((prev) => prev.map((p) => (p.id === playerId ? { ...p, attended } : p)));
-    fetch(`/api/players/${playerId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ attended }),
-    }).catch(() => { });
+    patchAuth(`/api/players/${playerId}`, { attended }).catch(() => { });
   };
 
   // Deuda del equipo marcada como saldada (o no) desde el registro
   const marcarDeuda = (teamId: number, debtPaid: boolean) => {
     setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, debt_paid: debtPaid } : t)));
-    fetch(`/api/teams/${teamId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ debtPaid }),
-    }).catch(() => { });
+    patchAuth(`/api/teams/${teamId}`, { debtPaid }).catch(() => { });
   };
 
   const actasFiltradas = actas.filter((acta) => {

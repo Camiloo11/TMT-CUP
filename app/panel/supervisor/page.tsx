@@ -227,8 +227,11 @@ function hydrateEvents(
   for (const ev of events) {
     const side: TeamSide | null =
       ev.team_id === teamAId ? "home" : ev.team_id === teamBId ? "away" : null;
-    if (!side || !ev.player?.id) continue;
-    const pid = String(ev.player.id);
+    if (!side) continue;
+    // Goles de oficio por sanción W llegan sin jugador: cuentan en el
+    // marcador bajo un id especial (no pintan tarjeta en el roster).
+    if (!ev.player?.id && ev.type !== "GOL") continue;
+    const pid = ev.player?.id ? String(ev.player.id) : "__oficio__";
     const kind: EventKind = ev.type === "GOL" ? "goal" : ev.type === "AMARILLA" ? "yellow" : "red";
     hydrated[side][pid] = [
       ...(hydrated[side][pid] ?? []),
@@ -247,8 +250,10 @@ function buildReport(params: {
   walkover?: string;
 }) {
   const findName = (side: TeamSide, playerId: string) =>
-    params.rosters[side].find((entry) => entry.id === playerId)?.name ??
-    (side === "home" ? "Jugador local" : "Jugador visitante");
+    playerId === "__oficio__"
+      ? "Gol de oficio (sanción W)"
+      : params.rosters[side].find((entry) => entry.id === playerId)?.name ??
+        (side === "home" ? "Jugador local" : "Jugador visitante");
 
   const goals = (["home", "away"] as const).flatMap((side) =>
     Object.entries(params.events[side]).flatMap(([playerId, playerEvents]) =>
@@ -598,6 +603,31 @@ export default function SupervisorPage() {
       return;
     }
     setPresence((current) => ({ ...current, [team]: true }));
+
+    // Si la llegada generó sanción W, el servidor ya insertó los goles de
+    // oficio: sumarlos al marcador local de inmediato (rival del tardío).
+    if (data?.applied_sanction === "W_2MIN" || data?.applied_sanction === "W_4MIN") {
+      const rival: TeamSide = team === "home" ? "away" : "home";
+      const goles = data.applied_sanction === "W_4MIN" ? 2 : 1;
+      setEventsByTeam((current) => ({
+        ...current,
+        [rival]: {
+          ...current[rival],
+          __oficio__: [
+            ...(current[rival]["__oficio__"] ?? []),
+            ...Array.from({ length: goles }, (_, i) => ({
+              // eslint-disable-next-line react-hooks/purity -- handler de botón, nunca corre en render
+              id: `oficio-${Date.now()}-${i}`,
+              playerId: "__oficio__",
+              team: rival,
+              kind: "goal" as EventKind,
+              minute: 0,
+            })),
+          ],
+        },
+      }));
+      notify(`⚽ Sanción W aplicada: +${goles} gol${goles > 1 ? "es" : ""} para el equipo que llegó a tiempo`, "ok");
+    }
   }
 
   // Registra el evento localmente y lo sincroniza con el servidor. Al confirmar,
@@ -1261,8 +1291,9 @@ export default function SupervisorPage() {
               {/* ÁREA DE BOTONES DE ACCIÓN INFERIORES FLOTANTES */}
               <div className="fixed bottom-6 left-6 right-6 z-40 flex items-center justify-between gap-3">
                 <div className="flex-1 min-h-[56px] flex items-center">
-                  {/* El árbitro finaliza cuando pita (siempre disponible, no
-                      atado a que el cronómetro llegue a 0). Mismo estilo. */}
+                  {/* El botón de finalizar SOLO aparece cuando se termina el
+                      tiempo del partido (cronómetro en 0). */}
+                  {liveSeconds === 0 && (
                   <button
                     type="button"
                     onClick={() => setConfirmFinish(true)}
@@ -1270,6 +1301,7 @@ export default function SupervisorPage() {
                   >
                     Finalizar encuentro
                   </button>
+                  )}
                 </div>
 
                 <button
@@ -1382,7 +1414,7 @@ export default function SupervisorPage() {
         {/* MODAL DE INCIDENTES RÁPIDOS */}
         {incidentOpen && (
           <div className="fixed inset-0 z-45 flex items-end justify-center bg-slate-950/45 px-4 py-4 backdrop-blur-sm sm:items-center">
-            <div className="w-full max-w-md rounded-[1.8rem] bg-white p-4 shadow-2xl sm:p-6">
+            <div className="w-full max-w-md rounded-[1.8rem] bg-white/80 backdrop-blur-xl p-4 shadow-2xl sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-base font-medium text-[#10204c] sm:text-xl">Reportar incidente</h3>
                 <button type="button" onClick={() => setIncidentOpen(false)} className="shrink-0 text-xs font-semibold text-slate-500 hover:text-slate-800 sm:text-sm">
@@ -1411,7 +1443,7 @@ export default function SupervisorPage() {
         {/* CONFIRMACIÓN PERSONALIZADA DEL PITAZO FINAL */}
         {confirmFinish && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white/80 backdrop-blur-xl p-6 text-center shadow-2xl border border-white/50 flex flex-col items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-[#10204c]/10 text-[#10204c] flex items-center justify-center">
                 <svg
                   className="w-7 h-7"
@@ -1458,7 +1490,7 @@ export default function SupervisorPage() {
         {/* POPUP DE CONFIRMACIÓN DE ENVÍO */}
         {showSuccessPopup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white/80 backdrop-blur-xl p-6 text-center shadow-2xl border border-white/50 flex flex-col items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
                 <svg
                   className="w-7 h-7"

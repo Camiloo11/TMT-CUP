@@ -152,9 +152,26 @@ export async function POST(
         type: sanctionType,
         note: `Llegada al minuto ${delay.toFixed(1)} de la espera`,
       });
+
+      // Los goles del W se registran YA (no en el kickoff): el marcador
+      // arranca con ellos y quedan en la base como goles de oficio.
+      // W_2MIN = +1 gol al rival · W_4MIN = +2 goles al rival.
+      const rivalId = side === "A" ? match.team_b_id : match.team_a_id;
+      const goles = sanctionType === "W_4MIN" ? 2 : 1;
+      for (let g = 0; g < goles; g++) {
+        await supabase.from("match_events").insert({
+          match_id: matchId,
+          team_id: rivalId,
+          player_id: null,
+          type: "GOL",
+          minute: 0,
+        });
+      }
+      await recomputeScore(supabase, matchId);
     }
 
-    return Response.json({ ...data, applied_sanction: sanctionType });
+    const { data: fresh } = await supabase.from("matches").select().eq("id", matchId).single();
+    return Response.json({ ...(fresh ?? data), applied_sanction: sanctionType });
   }
 
   // ── 3. Kickoff: empieza el partido ─────────────────────────
@@ -166,28 +183,8 @@ export async function POST(
       return Response.json({ error: "Ambos equipos deben estar presentes" }, { status: 409 });
     }
 
-    // Sanciones por retraso → goles de oficio para el rival en el kickoff:
-    // W_2MIN = +1 gol · W_4MIN = +2 goles (jugador null, minuto 0)
-    const { data: wSanctions } = await supabase
-      .from("sanctions")
-      .select("team_id, type")
-      .eq("match_id", matchId)
-      .in("type", ["W_2MIN", "W_4MIN"]);
-
-    for (const s of wSanctions ?? []) {
-      const rivalId = s.team_id === match.team_a_id ? match.team_b_id : match.team_a_id;
-      const goles = s.type === "W_4MIN" ? 2 : 1;
-      for (let g = 0; g < goles; g++) {
-        await supabase.from("match_events").insert({
-          match_id: matchId,
-          team_id: rivalId,
-          player_id: null,
-          type: "GOL",
-          minute: 0,
-        });
-      }
-    }
-
+    // Los goles por sanción W ya se insertaron al marcar la llegada tarde
+    // (team_present): el kickoff solo arranca el partido y recalcula.
     const { data, error } = await supabase
       .from("matches")
       .update({ status: "EN_JUEGO", kickoff_at: new Date().toISOString() })
