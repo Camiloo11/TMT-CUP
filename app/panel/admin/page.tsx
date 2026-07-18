@@ -12,7 +12,7 @@ import {
   FinishedMatchCardFemenino,
   type FinishedMatchActa,
   type AuditLog,
-} from "./components/actas";
+} from "./components/Proceedings";
 
 // ── Tipos ──────────────────────────────────────────────────
 type AdminPlayer = {
@@ -651,7 +651,7 @@ export default function AdminSupervisorPage() {
                               {/* Desplegable ¿Hace parte de tMt? */}
                               {tmtOpen && (
                                 <div className="rounded-xl bg-gray-50/80 border border-black/5 p-1.5 space-y-1">
-                                  <span className="block text-[9px] font-bold text-gray-400 tracking-wider uppercase px-1">¿Hace parte de tMt?</span>
+                                  <span className="block text-[12px] font-medium text-gray-400 tracking-wider px-1">¿Hace parte de tMt?</span>
                                   {TMT_OPTIONS.map((opt) => {
                                     const activo = p.tmt_status === opt.value;
                                     return (
