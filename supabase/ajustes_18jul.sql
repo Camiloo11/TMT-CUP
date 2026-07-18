@@ -217,13 +217,29 @@ insert into pitch_assignments (day, field_number, supervisor_name, referee_name)
   ('2026-07-18', 5, 'Camila Reinoso',   'Samuel Garzón');
 
 -- ── 4) Eliminar cuentas extra del staff (profiles cae en cascada) ────
+-- Solo los 2 supervisores extra. jimena.cely@ y dayanna@ SÍ van: se
+-- restauran sus permisos de ADMIN en el bloque 4b de abajo.
 delete from auth.users
 where lower(email) in (
   'sara.rojas@tmtcup.com',
-  'samuel.sanchez@tmtcup.com',
-  'jimena.cely@tmtcup.com',
-  'dayanna@tmtcup.com'
+  'samuel.sanchez@tmtcup.com'
 );
+
+-- ── 4b) Restaurar a Jimena Cely y Dayanna como ADMIN (por si su cuenta
+--        ya se había borrado en una corrida anterior de este script) ──
+do $$
+declare
+  v_id uuid;
+begin
+  for v_id in
+    select id from auth.users
+    where lower(email) in ('jimena.cely@tmtcup.com', 'dayanna@tmtcup.com')
+  loop
+    insert into profiles (id, name, role)
+    values (v_id, initcap(split_part((select email from auth.users where id = v_id), '@', 1)), 'ADMIN')
+    on conflict (id) do update set role = 'ADMIN';
+  end loop;
+end $$;
 
 -- ── Verificaciones ───────────────────────────────────────────────────
 select t.category, t.name as equipo, count(p.id) as jugadores
