@@ -86,7 +86,7 @@ function AuditLogCard({ log }: { log: AuditLog }) {
             <span className="truncate">
               {ev.player} <span className="text-gray-400">({ev.minute}&apos;)</span>
             </span>
-            <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-1 rounded-sm uppercase shrink-0 ml-auto">
+            <span className="text-[9px] font-medium text-gray-400 bg-gray-100 px-1 rounded-sm shrink-0 ml-auto">
               {ev.team}
             </span>
           </div>
@@ -927,7 +927,7 @@ export default function AdminSupervisorPage() {
                 ]).map((team) => (
                   <div key={team.side} className="rounded-2xl border border-[var(--border)] bg-white p-3">
                     <div className="flex items-center justify-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 border border-[var(--border)] flex items-center justify-center shrink-0"><span className="text-[11px] font-black uppercase text-[var(--primary)]">{team.title[0]}</span></div>
+                      <div className="w-8 h-8 rounded-full bg-gray-100 border border-[var(--border)] flex items-center justify-center shrink-0"><span className="text-[11px] font-black text-[var(--primary)]">{team.title[0]}</span></div>
                       <h4 className="text-sm font-semibold text-[var(--primary)] truncate">{team.title}</h4>
                     </div>
                     <div className="space-y-2">
@@ -985,7 +985,7 @@ export default function AdminSupervisorPage() {
               {/* Eventos registrados (original) vs. actualizados (tras la edición) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-2.5 rounded-2xl bg-gray-50 border border-[var(--border)]">
-                  <span className="block text-[10px] font-bold opacity-60 uppercase tracking-wider mb-1.5">Eventos registrados</span>
+                  <span className="block text-[13px] font-medium opacity-60 tracking-wider mb-1.5">Eventos registrados</span>
                   <div className="space-y-1 max-h-28 overflow-y-auto pr-1 no-scrollbar" style={{ scrollbarWidth: "none" }}>
                     {(actas.find((a) => a.id === actaEdicion.id)?.events ?? []).length === 0 && <p className="text-[10px] opacity-40">Sin eventos.</p>}
                     {(actas.find((a) => a.id === actaEdicion.id)?.events ?? []).map((ev) => (
@@ -994,7 +994,7 @@ export default function AdminSupervisorPage() {
                   </div>
                 </div>
                 <div className="p-2.5 rounded-2xl bg-[var(--primary)]/5 border border-[var(--primary)]/15">
-                  <span className="block text-[10px] font-bold text-[var(--primary)] uppercase tracking-wider mb-1.5">Eventos actualizados</span>
+                  <span className="block text-[13px] font-medium text-[var(--primary)] tracking-wider mb-1.5">Eventos actualizados</span>
                   <div className="space-y-1 max-h-28 overflow-y-auto pr-1 no-scrollbar" style={{ scrollbarWidth: "none" }}>
                     {actaEdicion.events.length === 0 && <p className="text-[10px] opacity-40">Sin eventos.</p>}
                     {actaEdicion.events.map((ev) => (
@@ -1006,12 +1006,12 @@ export default function AdminSupervisorPage() {
 
               {/* Incidentes */}
               <div>
-                <label className="block text-[11px] font-bold opacity-70 uppercase tracking-wider mb-1">Incidentes</label>
+                <label className="block text-[13px] font-medium opacity-70 tracking-wider mb-1">Incidentes</label>
                 <textarea rows={2} value={actaEdicion.incidentsNotes || ""} onChange={(e) => setActaEdicion({ ...actaEdicion, incidentsNotes: e.target.value })} placeholder="Describe cualquier incidente del partido…" className="w-full p-2 text-xs rounded-xl border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
               </div>
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
                 <button type="button" onClick={() => { setActaEdicion(null); setOpenActaPlayer(null); }} className="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100">Cancelar</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1"><span className="material-symbols-outlined !text-[16px]">save</span>Guardar y registrar auditoría</button>
+                <button type="submit" className="px-5 py-2 rounded-full bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1">Guardar</button>
               </div>
             </form>
           </div>
