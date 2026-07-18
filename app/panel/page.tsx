@@ -203,8 +203,8 @@ export default function AdminLoginPage() {
           {/* Lado Imagen Decorativa (Derecha) */}
           <div className="w-full md:w-1/2 min-h-[220px] md:min-h-full relative overflow-hidden bg-slate-100">
             <Image
-              src="/assets/ImageLogin.png"
-              alt="TMT CUP Ilustración Login"
+              src="./public/assets/ImageLogin.png"
+              alt="tMt Cup Ilustración Login"
               fill
               className="object-cover object-bottom md:object-[center_80%]"
               sizes="(max-width: 768px) 100vw, 50vw"
