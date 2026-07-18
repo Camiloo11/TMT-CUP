@@ -181,7 +181,7 @@ function readControlBackup(): PersistedControl | null {
   }
 }
 
-const matchDuration = 26 * 60;
+const matchDuration = 0.2 * 60;
 const waitingDuration = 6 * 60;
 
 // Etiquetas de eventos para chips y toasts (con género gramatical correcto)
