@@ -179,10 +179,8 @@ function readControlBackup(): PersistedControl | null {
   }
 }
 
-// ⚠️ VALORES DE PRUEBA (Simón): para el DÍA REAL del torneo deben volver a
-//    matchDuration = 26 * 60 y waitingDuration = 6 * 60.
-const matchDuration = 0.1 * 60;
-const waitingDuration = 0.1 * 60;
+const matchDuration = 26 * 60;
+const waitingDuration = 6 * 60;
 
 // Etiquetas de eventos para chips y toasts (con género gramatical correcto)
 const EVENT_LABEL: Record<EventKind, { icon: string; noun: string; added: string; removed: string }> = {
