@@ -15,9 +15,11 @@ interface TarjetaPartidoProps {
   fechaHora?: string;
   equipoLocal: string;
   logoLocal?: string;
+  banderaLocal?: string;
   golesLocal?: number;
   equipoVisita: string;
   logoVisita?: string;
+  banderaVisita?: string;
   golesVisita?: number;
   cancha?: string;
   resumen?: EventoPartido[];
@@ -30,9 +32,11 @@ export function TarjetaPartido({
   fechaHora,
   equipoLocal,
   logoLocal,
+  banderaLocal,
   golesLocal = 0,
   equipoVisita,
   logoVisita,
+  banderaVisita,
   golesVisita = 0,
   cancha,
   resumen = [],
@@ -121,7 +125,7 @@ export function TarjetaPartido({
             className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all"
             style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}
           >
-            {logoLocal ? <img src={logoLocal} alt={equipoLocal} className="w-full h-full object-contain rounded-full" /> : equipoLocal.substring(0, 2).toUpperCase()}
+            {logoLocal ? <img src={logoLocal} alt={equipoLocal} className="w-full h-full object-contain rounded-full" /> : banderaLocal ? <span className="text-lg md:text-2xl leading-none">{banderaLocal}</span> : equipoLocal.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
             {equipoLocal}
@@ -151,7 +155,7 @@ export function TarjetaPartido({
             className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all"
             style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}
           >
-            {logoVisita ? <img src={logoVisita} alt={equipoVisita} className="w-full h-full object-contain rounded-full" /> : equipoVisita.substring(0, 2).toUpperCase()}
+            {logoVisita ? <img src={logoVisita} alt={equipoVisita} className="w-full h-full object-contain rounded-full" /> : banderaVisita ? <span className="text-lg md:text-2xl leading-none">{banderaVisita}</span> : equipoVisita.substring(0, 2).toUpperCase()}
           </div>
           <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
             {equipoVisita}

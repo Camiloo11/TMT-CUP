@@ -1,15 +1,47 @@
 "use client";
 
+// Tarjeta de un partido de fase final (lo que entrega /api/brackets)
+type BracketCard = {
+  fecha: string;
+  estado: "FIN" | "VIVO" | "PROXIMO";
+  equipoLocal: string | null;
+  flagLocal: string | null;
+  golesLocal?: number;
+  penalesLocal?: number;
+  equipoVisita: string | null;
+  flagVisita: string | null;
+  golesVisita?: number;
+  penalesVisita?: number;
+};
+
 interface FixtureEliminatoriaProps {
   genero?: "masculino" | "femenino";
+  // Semifinales (0 y 1) + final de la categoría; llega desde la página pública.
+  bracket?: { semifinales: BracketCard[]; final: BracketCard | null };
 }
 
-export default function FixtureEliminatoria({ genero = "masculino" }: FixtureEliminatoriaProps) {
-  const esFemenino = genero === "femenino";
+export default function FixtureEliminatoria({ genero = "masculino", bracket }: FixtureEliminatoriaProps) {
+  const sf1 = bracket?.semifinales?.[0];
+  const sf2 = bracket?.semifinales?.[1];
+  const fin = bracket?.final ?? null;
 
-  const equipos = esFemenino 
-    ? { semi1_1: "Atenas FC", semi1_2: "Esparta Fem", semi2_1: "Valquirias", semi2_2: "Amazonas", final_1: "Atenas FC", final_2: "Valquirias" }
-    : { semi1_1: "Equipo Alpha", semi1_2: "Equipo Beta", semi2_1: "Equipo Éxodo", semi2_2: "Equipo Omega", final_1: "Alpha", final_2: "Omega" };
+  // Nombre con bandera; si el equipo aún no está definido → "Semifinalista N"/"Finalista N"
+  const nombre = (name?: string | null, flag?: string | null, placeholder?: string) =>
+    name ? (flag ? `${flag} ${name}` : name) : (placeholder ?? "Por definir");
+  // Marcador: "—" si no hay goles; agrega los penales entre paréntesis si existen
+  const marcador = (g?: number, p?: number) =>
+    g == null ? "—" : p != null ? `${g} (${p})` : `${g}`;
+  const estadoTxt = (e?: "FIN" | "VIVO" | "PROXIMO") =>
+    e === "FIN" ? "Fin" : e === "VIVO" ? "En vivo" : "Próximo";
+
+  const equipos = {
+    semi1_1: nombre(sf1?.equipoLocal, sf1?.flagLocal, "Semifinalista 1"),
+    semi1_2: nombre(sf1?.equipoVisita, sf1?.flagVisita, "Semifinalista 2"),
+    semi2_1: nombre(sf2?.equipoLocal, sf2?.flagLocal, "Semifinalista 3"),
+    semi2_2: nombre(sf2?.equipoVisita, sf2?.flagVisita, "Semifinalista 4"),
+    final_1: nombre(fin?.equipoLocal, fin?.flagLocal, "Finalista 1"),
+    final_2: nombre(fin?.equipoVisita, fin?.flagVisita, "Finalista 2"),
+  };
 
   return (
     <div className="space-y-4 flex-1 flex flex-col w-full" data-theme={genero}>
@@ -56,17 +88,17 @@ export default function FixtureEliminatoria({ genero = "masculino" }: FixtureEli
                     backgroundColor: "rgba(16, 32, 76, 0.01)" 
                   }}
                 >
-                  <span>Sáb, 18/7</span>
-                  <span className="font-semibold" style={{ color: "var(--success)" }}>Fin</span>
+                  <span>{sf1?.fecha ?? "Por definir"}</span>
+                  <span className="font-semibold" style={{ color: "var(--success)" }}>{estadoTxt(sf1?.estado)}</span>
                 </div>
                 <div className="p-1.5 min-[375px]:p-2 md:p-4 space-y-1 text-[9px] min-[375px]:text-xs md:text-base font-normal" style={{ color: "var(--foreground)" }}>
                   <div className="flex justify-between items-center gap-1">
                     <span className="truncate tracking-tighter min-[375px]:tracking-normal font-semibold">{equipos.semi1_1}</span>
-                    <span className="font-bold text-[9px] min-[375px]:text-xs" style={{ color: "var(--primary)" }}>3</span>
+                    <span className="font-bold text-[9px] min-[375px]:text-xs" style={{ color: "var(--primary)" }}>{marcador(sf1?.golesLocal, sf1?.penalesLocal)}</span>
                   </div>
                   <div className="flex justify-between items-center font-light pt-1 md:pt-2.5" style={{ opacity: 0.6, borderTop: "1px solid var(--border)" }}>
                     <span className="truncate tracking-tighter min-[375px]:tracking-normal">{equipos.semi1_2}</span>
-                    <span className="text-[9px] min-[375px]:text-xs">1</span>
+                    <span className="text-[9px] min-[375px]:text-xs">{marcador(sf1?.golesVisita, sf1?.penalesVisita)}</span>
                   </div>
                 </div>
               </div>
@@ -88,18 +120,18 @@ export default function FixtureEliminatoria({ genero = "masculino" }: FixtureEli
                     backgroundColor: "rgba(16, 32, 76, 0.01)" 
                   }}
                 >
-                  <span>Sáb, 19/7</span>
-                  <span className="font-semibold" style={{ color: "var(--success)" }}>Fin</span>
+                  <span>{sf2?.fecha ?? "Por definir"}</span>
+                  <span className="font-semibold" style={{ color: "var(--success)" }}>{estadoTxt(sf2?.estado)}</span>
                 </div>
                 <div className="p-1.5 min-[375px]:p-2 md:p-4 space-y-1 text-[9px] min-[375px]:text-xs md:text-base font-light" style={{ color: "var(--foreground)" }}>
                   <div className="flex justify-between items-center gap-1">
                     <span className="truncate tracking-tighter min-[375px]:tracking-normal">{equipos.semi2_1}</span>
-                    <span className="whitespace-nowrap text-[8px] min-[375px]:text-[10px]">2 <span className="text-[7px] min-[375px]:text-[9px]" style={{ opacity: 0.5 }}>(3)</span></span>
+                    <span className="whitespace-nowrap text-[8px] min-[375px]:text-[10px]">{marcador(sf2?.golesLocal, sf2?.penalesLocal)}</span>
                   </div>
                   <div className="flex justify-between items-center font-semibold pt-1 md:pt-2.5" style={{ borderTop: "1px solid var(--border)" }}>
                     <span className="truncate tracking-tighter min-[375px]:tracking-normal">{equipos.semi2_2}</span>
                     <span className="font-bold whitespace-nowrap text-[8px] min-[375px]:text-[10px]" style={{ color: "var(--primary)" }}>
-                      2 <span className="text-[7px] min-[375px]:text-[9px]" style={{ opacity: 0.6 }}>(4)</span>
+                      {marcador(sf2?.golesVisita, sf2?.penalesVisita)}
                     </span>
                   </div>
                 </div>
@@ -128,22 +160,22 @@ export default function FixtureEliminatoria({ genero = "masculino" }: FixtureEli
                     borderBottom: "1px solid var(--accent)"
                   }}
                 >
-                  <span className="truncate">Próximamente</span>
-                  <span 
+                  <span className="truncate">{fin?.fecha ?? "Próximamente"}</span>
+                  <span
                     className="px-1 py-0.2 rounded text-[7px] min-[375px]:text-[8px] md:text-[10px] font-bold"
                     style={{ backgroundColor: "var(--accent)", color: "var(--card-strong)" }}
                   >
-                    Hoy
+                    {fin ? estadoTxt(fin.estado) : "Hoy"}
                   </span>
                 </div>
                 <div className="p-1.5 min-[375px]:p-3 md:p-5 space-y-1.5 text-[9px] min-[375px]:text-xs md:text-base font-normal" style={{ color: "var(--foreground)" }}>
                   <div className="flex justify-between items-center gap-1">
                     <span className="truncate flex items-center gap-0.5 font-semibold tracking-tighter min-[375px]:tracking-normal">🏆 {equipos.final_1}</span>
-                    <span className="font-normal" style={{ opacity: 0.3 }}>—</span>
+                    <span className="font-normal" style={{ opacity: 0.3 }}>{marcador(fin?.golesLocal, fin?.penalesLocal)}</span>
                   </div>
                   <div className="flex justify-between items-center gap-1 pt-1 min-[375px]:pt-2 md:pt-3.5" style={{ borderTop: "1px solid var(--border)" }}>
                     <span className="truncate flex items-center gap-0.5 font-semibold tracking-tighter min-[375px]:tracking-normal">🏆 {equipos.final_2}</span>
-                    <span className="font-normal" style={{ opacity: 0.3 }}>—</span>
+                    <span className="font-normal" style={{ opacity: 0.3 }}>{marcador(fin?.golesVisita, fin?.penalesVisita)}</span>
                   </div>
                 </div>
               </div>

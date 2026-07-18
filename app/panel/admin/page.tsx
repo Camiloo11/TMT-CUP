@@ -185,6 +185,8 @@ export default function AdminSupervisorPage() {
 
   // ── Estado de Edición de Acta Seleccionada ──────────────────
   const [actaEdicion, setActaEdicion] = useState<FinishedMatchActa | null>(null);
+  // Jugador cuyo menú de eventos (+/-) está abierto en el roster del modal
+  const [openActaPlayer, setOpenActaPlayer] = useState<string | null>(null);
 
   // Funciones para resolver incidentes
   const cambiarEstadoIncidente = (id: number, nuevoEstado: IncidentStatus) => {
@@ -284,6 +286,30 @@ export default function AdminSupervisorPage() {
       scoreB: Math.max(0, actaEdicion.scoreB - restaB),
       events: actaEdicion.events.filter((e) => e.id !== eventoId),
     });
+  };
+
+  // ── Roster del acta (como en "partido en vivo"): jugadores reales del
+  //    equipo + cualquiera que ya tenga eventos registrados en el acta ──
+  const rosterActa = (teamName: string, side: "A" | "B") => {
+    const reales = players.filter((p) => p.team?.name === teamName).map((p) => p.name);
+    const conEventos = (actaEdicion?.events ?? [])
+      .filter((e) => e.team === side)
+      .map((e) => e.player);
+    return Array.from(new Set([...reales, ...conEventos]));
+  };
+  const eventosDeJugador = (side: "A" | "B", jugador: string) =>
+    (actaEdicion?.events ?? []).filter((e) => e.team === side && e.player === jugador);
+
+  // Agregar / quitar un evento a un jugador concreto desde el roster
+  const agregarEventoJugador = (tipo: "GOL" | "AMARILLA" | "ROJA", side: "A" | "B", jugador: string) =>
+    agregarEventoEnEdicion(tipo, side, 0, jugador);
+  const quitarEventoJugador = (tipo: "GOL" | "AMARILLA" | "ROJA", side: "A" | "B", jugador: string) => {
+    if (!actaEdicion) return;
+    const delTipo = actaEdicion.events.filter(
+      (e) => e.team === side && e.player === jugador && e.type === tipo
+    );
+    const ultimo = delTipo[delTipo.length - 1];
+    if (ultimo) eliminarEventoEnEdicion(ultimo.id);
   };
 
   // Nómina agrupada por equipo, respetando el buscador y el filtro de género
@@ -726,19 +752,20 @@ export default function AdminSupervisorPage() {
       {/* ────────────────────────────────────────────────────────────── */}
       {actaEdicion && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-4 min-[375px]:p-6 border border-[var(--border)] shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-2xl p-4 min-[375px]:p-6 border border-[var(--border)] shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             
+            {/* Cabecera: equipos, cancha y supervisor (sin "Editar Acta #") */}
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <div>
                 <h3 className="text-sm font-bold text-[var(--primary)]">
-                  Editar Acta de Partido #{actaEdicion.id}
+                  {actaEdicion.teamA} <span className="opacity-40">vs</span> {actaEdicion.teamB}
                 </h3>
                 <p className="text-[10px] opacity-60">
-                  Cancha {actaEdicion.fieldNumber} • Registrado por {actaEdicion.supervisorName}
+                  Cancha {actaEdicion.fieldNumber} • {actaEdicion.phase} • Registrado por {actaEdicion.supervisorName}
                 </p>
               </div>
               <button
-                onClick={() => setActaEdicion(null)}
+                onClick={() => { setActaEdicion(null); setOpenActaPlayer(null); }}
                 className="p-1 rounded-full hover:bg-gray-100 text-gray-400"
               >
                 <span className="material-symbols-outlined">close</span>
@@ -746,12 +773,9 @@ export default function AdminSupervisorPage() {
             </div>
 
             <form onSubmit={guardarCambiosActa} className="space-y-4">
-              
-              {/* Ajuste de Marcador */}
-              <div className="p-3 rounded-2xl bg-gray-50 border border-[var(--border)] space-y-2">
-                <label className="block text-[11px] font-bold opacity-70 uppercase tracking-wider text-center">
-                  Ajuste de Marcador Final
-                </label>
+
+              {/* Marcador (se ajusta solo al asignar goles a los jugadores) */}
+              <div className="p-3 rounded-2xl bg-gray-50 border border-[var(--border)]">
                 <div className="grid grid-cols-5 items-center gap-2">
                   <div className="col-span-2 text-center">
                     <span className="text-xs font-semibold block truncate">{actaEdicion.teamA}</span>
@@ -781,73 +805,148 @@ export default function AdminSupervisorPage() {
                 </div>
               </div>
 
-              {/* Eventos del Acta */}
-              <div className="space-y-2">
-                <label className="block text-[11px] font-bold opacity-70 uppercase tracking-wider">
-                  Eventos Registrados ({actaEdicion.events.length})
-                </label>
-
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                  {actaEdicion.events.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-[var(--border)] text-xs"
-                    >
-                      <span>
-                        {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}{" "}
-                        <strong>{ev.player}</strong> (Min {ev.minute}&apos;) -{" "}
-                        {ev.team === "A" ? actaEdicion.teamA : actaEdicion.teamB}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => eliminarEventoEnEdicion(ev.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <span className="material-symbols-outlined !text-[16px]">delete</span>
-                      </button>
+              {/* ROSTER estilo "partido en vivo": jugadores por equipo con sus eventos.
+                  Toca la flecha de un jugador para agregar/quitar gol, amarilla o roja. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {([
+                  { title: actaEdicion.teamA, side: "A" as const },
+                  { title: actaEdicion.teamB, side: "B" as const },
+                ]).map((team) => (
+                  <div key={team.side} className="rounded-2xl border border-[var(--border)] bg-white p-3">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 border border-[var(--border)] flex items-center justify-center shrink-0">
+                        <span className="text-[11px] font-black uppercase text-[var(--primary)]">{team.title[0]}</span>
+                      </div>
+                      <h4 className="text-sm font-semibold text-[var(--primary)] truncate">{team.title}</h4>
                     </div>
-                  ))}
+
+                    <div className="space-y-2">
+                      {rosterActa(team.title, team.side).length === 0 && (
+                        <p className="text-[10px] text-center opacity-50 py-2">
+                          Sin jugadores en la base para este equipo.
+                        </p>
+                      )}
+                      {rosterActa(team.title, team.side).map((jugador) => {
+                        const evs = eventosDeJugador(team.side, jugador);
+                        const key = `${team.side}-${jugador}`;
+                        const isOpen = openActaPlayer === key;
+                        const expulsado = evs.some((e) => e.type === "ROJA");
+                        return (
+                          <div
+                            key={key}
+                            className={`rounded-xl border border-[var(--border)] bg-white px-2.5 py-2 flex flex-col gap-2 ${expulsado ? "opacity-50 grayscale-[0.6] bg-gray-100" : ""}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-slate-800 truncate">
+                                {jugador}
+                                {expulsado && (
+                                  <span className="ml-1.5 align-middle text-[9px] font-black tracking-wider text-red-600">
+                                    🟥 EXPULSADO
+                                  </span>
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setOpenActaPlayer(isOpen ? null : key)}
+                                className="h-7 w-7 rounded-full bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0"
+                              >
+                                <span className={`material-symbols-outlined !text-[16px] transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                                  expand_more
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* Chips de eventos del jugador (con su minuto) */}
+                            {evs.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {evs.map((ev) => (
+                                  <span
+                                    key={ev.id}
+                                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 border border-[var(--border)] text-slate-600 select-none"
+                                  >
+                                    {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"} {ev.minute}&apos;
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Controles +/- para agregar o quitar eventos */}
+                            {isOpen && (
+                              <div className="flex flex-wrap gap-1.5 justify-center pt-1">
+                                {([
+                                  { icon: "⚽", type: "GOL" as const },
+                                  { icon: "🟨", type: "AMARILLA" as const },
+                                  { icon: "🟥", type: "ROJA" as const },
+                                ]).map((act) => (
+                                  <div
+                                    key={act.type}
+                                    className="flex items-center gap-1 px-1.5 py-1 rounded-full border border-[var(--border)] bg-gray-50"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarEventoJugador(act.type, team.side, jugador)}
+                                      className="w-5 h-5 rounded-full bg-white hover:bg-gray-200 border border-[var(--border)] flex items-center justify-center font-bold text-xs active:scale-90 transition-transform"
+                                    >
+                                      <span className="leading-none mt-[-2px]">-</span>
+                                    </button>
+                                    <span className="text-[11px] select-none">{act.icon}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => agregarEventoJugador(act.type, team.side, jugador)}
+                                      className="w-5 h-5 rounded-full bg-white hover:bg-gray-200 border border-[var(--border)] flex items-center justify-center font-bold text-xs active:scale-90 transition-transform"
+                                    >
+                                      <span className="leading-none mt-[-1px]">+</span>
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Eventos registrados (original) vs. actualizados (tras la edición) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-2.5 rounded-2xl bg-gray-50 border border-[var(--border)]">
+                  <span className="block text-[10px] font-bold opacity-60 uppercase tracking-wider mb-1.5">
+                    Eventos registrados
+                  </span>
+                  <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                    {(actas.find((a) => a.id === actaEdicion.id)?.events ?? []).length === 0 && (
+                      <p className="text-[10px] opacity-40">Sin eventos.</p>
+                    )}
+                    {(actas.find((a) => a.id === actaEdicion.id)?.events ?? []).map((ev) => (
+                      <div key={`o-${ev.id}`} className="text-[10px] text-slate-600">
+                        {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"} {ev.player} ({ev.minute}&apos;) · {ev.team === "A" ? actaEdicion.teamA : actaEdicion.teamB}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-2xl bg-[var(--primary)]/5 border border-[var(--primary)]/15">
+                  <span className="block text-[10px] font-bold text-[var(--primary)] uppercase tracking-wider mb-1.5">
+                    Eventos actualizados
+                  </span>
+                  <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                    {actaEdicion.events.length === 0 && (
+                      <p className="text-[10px] opacity-40">Sin eventos.</p>
+                    )}
+                    {actaEdicion.events.map((ev) => (
+                      <div key={`u-${ev.id}`} className="text-[10px] text-slate-700">
+                        {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"} {ev.player} ({ev.minute}&apos;) · {ev.team === "A" ? actaEdicion.teamA : actaEdicion.teamB}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Botón rápido para corregir/añadir un evento extra */}
-              <div className="p-2.5 rounded-2xl bg-blue-50/50 border border-blue-100 text-[10px] space-y-1.5">
-                <span className="font-bold text-blue-900 block">+ Añadir evento faltante:</span>
-                <div className="grid grid-cols-3 gap-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      agregarEventoEnEdicion("GOL", "A", 30, "Ajuste Admin")
-                    }
-                    className="py-1 bg-white border rounded-lg font-semibold hover:bg-gray-50"
-                  >
-                    ⚽ Gol {actaEdicion.teamA}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      agregarEventoEnEdicion("GOL", "B", 30, "Ajuste Admin")
-                    }
-                    className="py-1 bg-white border rounded-lg font-semibold hover:bg-gray-50"
-                  >
-                    ⚽ Gol {actaEdicion.teamB}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      agregarEventoEnEdicion("AMARILLA", "A", 30, "Jugador")
-                    }
-                    className="py-1 bg-white border rounded-lg font-semibold hover:bg-gray-50"
-                  >
-                    🟨 Amarilla
-                  </button>
-                </div>
-              </div>
-
-              {/* Observaciones Generales del Acta */}
+              {/* Incidentes */}
               <div>
                 <label className="block text-[11px] font-bold opacity-70 uppercase tracking-wider mb-1">
-                  Notas u Observaciones del Acta
+                  Incidentes
                 </label>
                 <textarea
                   rows={2}
@@ -855,6 +954,7 @@ export default function AdminSupervisorPage() {
                   onChange={(e) =>
                     setActaEdicion({ ...actaEdicion, incidentsNotes: e.target.value })
                   }
+                  placeholder="Describe cualquier incidente del partido…"
                   className="w-full p-2 text-xs rounded-xl border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                 />
               </div>
@@ -863,7 +963,7 @@ export default function AdminSupervisorPage() {
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   type="button"
-                  onClick={() => setActaEdicion(null)}
+                  onClick={() => { setActaEdicion(null); setOpenActaPlayer(null); }}
                   className="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100"
                 >
                   Cancelar
@@ -873,7 +973,7 @@ export default function AdminSupervisorPage() {
                   className="px-5 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined !text-[16px]">save</span>
-                  Guardar Cambios y Registrar Auditoría
+                  Guardar y registrar auditoría
                 </button>
               </div>
             </form>

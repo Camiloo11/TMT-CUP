@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { teamEmoji } from "@/lib/team-emoji";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
@@ -12,6 +13,7 @@ import FixtureEliminatoria from "./components/FixtureEliminatoria";
 type StandingRow = {
   teamId: number;
   team: string;
+  flag: string | null;
   pj: number;
   pg: number;
   pe: number;
@@ -50,19 +52,23 @@ type ApiMatch = {
   score_b: number | null;
   kickoff_at: string | null;
   walkover: string | null;
-  teamA: { name: string } | null;
-  teamB: { name: string } | null;
+  teamA: { name: string; flag: string | null } | null;
+  teamB: { name: string; flag: string | null } | null;
   events?: ApiEvent[];
 };
 
-type BracketCard = {
+export type BracketCard = {
   id: number;
+  category: "MASCULINO" | "FEMENINO" | null;
+  phase: "CUARTOS" | "SEMIFINAL" | "FINAL";
   fecha: string;
   estado: "FIN" | "VIVO" | "PROXIMO";
-  equipoLocal: string;
+  equipoLocal: string | null;
+  flagLocal: string | null;
   golesLocal?: number;
   penalesLocal?: number;
-  equipoVisita: string;
+  equipoVisita: string | null;
+  flagVisita: string | null;
   golesVisita?: number;
   penalesVisita?: number;
 };
@@ -70,7 +76,7 @@ type BracketCard = {
 type BracketData = {
   cuartos: BracketCard[];
   semifinales: BracketCard[];
-  final: BracketCard | null;
+  finales: BracketCard[];
 };
 
 const phaseLabels: Record<string, string> = {
@@ -109,8 +115,10 @@ function toTarjetaProps(m: ApiMatch) {
     minuto,
     fechaHora: new Date(m.scheduled_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
     equipoLocal: m.teamA?.name ?? "Equipo A",
+    banderaLocal: m.teamA?.flag ?? teamEmoji(m.teamA?.name) ?? undefined,
     golesLocal: m.score_a ?? 0,
     equipoVisita: m.teamB?.name ?? "Equipo B",
+    banderaVisita: m.teamB?.flag ?? teamEmoji(m.teamB?.name) ?? undefined,
     golesVisita: m.score_b ?? 0,
     resumen,
   };
@@ -362,8 +370,10 @@ export default function PublicLivePage() {
   };
 
   const adaptarEquipos = (filas: StandingRow[]) =>
-    filas.map((f) => ({
-      nombre: f.team,
+    filas.map((f) => {
+      const bandera = f.flag ?? teamEmoji(f.team);
+      return {
+      nombre: bandera ? `${bandera} ${f.team}` : f.team,
       pj: f.pj,
       pg: f.pg,
       pe: f.pe,
@@ -374,13 +384,22 @@ export default function PublicLivePage() {
       amarillas: f.amarillas,
       rojas: f.rojas,
       pts: f.pts,
-    }));
+      };
+    });
 
   const gruposMasculinos = standings.filter((s) => ["A", "B", "C"].includes(s.group));
   const gruposFemeninos = standings.filter((s) => s.group === "F");
 
   const partidosMasculinos = liveMatches.filter((m) => m.phase !== "FINAL" && m.field_number !== 4);
   const partidosFemeninos = liveMatches.filter((m) => m.field_number === 4);
+
+  // Fase final por categoría (para el árbol de FixtureEliminatoria)
+  const bracketPorCategoria = (cat: "MASCULINO" | "FEMENINO") => ({
+    semifinales: (bracket?.semifinales ?? []).filter((c) => c.category === cat),
+    final: (bracket?.finales ?? []).find((c) => c.category === cat) ?? null,
+  });
+  const bracketMasculino = bracketPorCategoria("MASCULINO");
+  const bracketFemenino = bracketPorCategoria("FEMENINO");
 
   return (
     <div
@@ -429,7 +448,10 @@ export default function PublicLivePage() {
 
               {/* VISTA 2: FASE FINAL */}
               <div className="w-full flex-shrink-0 snap-start snap-always px-2 py-2 space-y-4">
-                <FixtureEliminatoria genero={generoMovil} />
+                <FixtureEliminatoria
+                  genero={generoMovil}
+                  bracket={generoMovil === "masculino" ? bracketMasculino : bracketFemenino}
+                />
               </div>
             </div>
 
@@ -498,7 +520,7 @@ export default function PublicLivePage() {
 
               {activeIndex === 2 && (
                 <div className="w-full">
-                  <FixtureEliminatoria genero="masculino" />
+                  <FixtureEliminatoria genero="masculino" bracket={bracketMasculino} />
                 </div>
               )}
             </div>
@@ -533,7 +555,7 @@ export default function PublicLivePage() {
 
               {activeIndex === 2 && (
                 <div className="w-full">
-                  <FixtureEliminatoria genero="femenino" />
+                  <FixtureEliminatoria genero="femenino" bracket={bracketFemenino} />
                 </div>
               )}
             </div>

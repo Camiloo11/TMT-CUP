@@ -3,11 +3,13 @@ import { getSupabase } from "@/lib/supabase";
 type Team = {
   id: number;
   name: string;
+  flag: string | null;
 };
 
 type StandingRow = {
   teamId: number;
   team: string;
+  flag: string | null;
   pj: number;
   pg: number;
   pe: number;
@@ -60,6 +62,7 @@ export async function GET() {
       const row: StandingRow = {
         teamId: team.id,
         team: team.name,
+        flag: team.flag ?? null,
         pj: 0,  // partidos jugados
         pg: 0,  // ganados
         pe: 0,  // empatados
