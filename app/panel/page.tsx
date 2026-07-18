@@ -200,11 +200,6 @@ export default function AdminLoginPage() {
             </form>
           </div>
 
-          {/* Lado Imagen Decorativa (Derecha) — foto del estadio con el trofeo.
-              La imagen es vertical (1086x1448) y el trofeo va abajo-izquierda:
-              object-cover + object-[center_bottom] mantiene el trofeo y el balón
-              siempre visibles. En móvil se le da más alto para que respire; en
-              escritorio ocupa toda la altura de la tarjeta (relación casi igual). */}
           <div className="w-full md:w-1/2 min-h-[300px] min-[425px]:min-h-[340px] md:min-h-full relative overflow-hidden bg-slate-100">
             <Image
               src="/assets/ImageLogin.png"
