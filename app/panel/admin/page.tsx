@@ -903,7 +903,7 @@ export default function AdminSupervisorPage() {
             {/* Cabecera: equipos, cancha y supervisor (sin "Editar Partido #") */}
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <div>
-                <h3 className="text-sm font-bold text-[var(--primary)]">{actaEdicion.teamA} <span className="opacity-40">vs</span> {actaEdicion.teamB}</h3>
+                <h3 className="text-lg font-medium text-[var(--primary)]">{actaEdicion.teamA} <span className="opacity-40">vs</span> {actaEdicion.teamB}</h3>
                 <p className="text-[10px] opacity-60">Cancha {actaEdicion.fieldNumber} • {actaEdicion.phase} • Registrado por {actaEdicion.supervisorName}</p>
               </div>
               <button onClick={() => { setActaEdicion(null); setOpenActaPlayer(null); }} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors flex items-center justify-center"><span className="material-symbols-outlined !text-[18px]">close</span></button>
