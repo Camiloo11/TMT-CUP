@@ -8,9 +8,10 @@
 --   3) Banderas, reset de partidos (sin fecha), árbitros y Simón admin.
 --   4) Activa los websockets (Realtime) de la vista pública.
 --
--- ⚠️ ANTES DE CORRER, EDITA 2 COSAS (búscalas más abajo):
---   • CORREO_DE_SIMON_AQUI  → el correo con el que entra Simón (para ADMIN).
---   • "Samuel Garzón"       → si el árbitro de Cancha 3/Final se llama distinto.
+-- ⚠️ ANTES DE CORRER, revisa 1 cosa (opcional):
+--   • "Samuel Garzón"  → si el árbitro de Cancha 3/Final se llama distinto,
+--     cámbialo. Si no estás seguro, déjalo y se corrige después.
+--   (Las cuentas de staff, como la de Simón, se crean desde la app, no aquí.)
 -- ════════════════════════════════════════════════════════════════════
 
 
@@ -337,7 +338,7 @@ group by t.category, t.name order by t.category, t.name;
 --   2) Jugadores faltantes de Alemania e Italia (sin dinero, solo roster).
 --   3) Reset de partidos (marcadores/eventos/estado) SIN tocar fechas.
 --   4) Supervisores + árbitros correctos por cancha (grupos, semis, final).
---   5) Poner a Simón como ADMIN (ver el bloque, hay que poner su correo).
+--   5) (Las cuentas de staff se crean desde la app, no en este script.)
 --   6) Verificaciones finales.
 --
 -- OJO nombres: el árbitro de la Cancha 3 y la Final masc lo dejé como
@@ -453,18 +454,14 @@ do update set supervisor_name = excluded.supervisor_name,
               referee_name    = excluded.referee_name;
 
 
--- ── 5) Simón como ADMIN ─────────────────────────────────────────────
--- Primero mira los perfiles y correos (ejecuta esta línea y busca a Simón):
---     select p.id, p.name, p.role, u.email
---     from profiles p join auth.users u on u.id = p.id
---     order by p.created_at;
+-- ── 5) Staff (Simón u otros supervisores) ───────────────────────────
+-- NO se crea aquí por SQL. Las cuentas de staff se crean DESDE LA APP
+-- (un admin las registra) porque Supabase Auth necesita hashear la
+-- contraseña; un INSERT a mano no serviría para iniciar sesión.
 --
--- Luego pon su correo aquí abajo y ejecuta:
-update profiles set role = 'ADMIN'
-where id = (
-  select id from auth.users
-  where lower(email) = lower('CORREO_DE_SIMON_AQUI')
-);
+-- Para darle a Simón una cuenta de SUPERVISOR, ver las instrucciones que
+-- te pasé en el chat (crear la cuenta con rol SUPERVISOR desde el panel).
+-- Este script deja los perfiles tal como están.
 
 
 -- ── 6) Verificaciones ───────────────────────────────────────────────
