@@ -869,14 +869,12 @@ export default function SupervisorPage() {
       {toast && (
         <div key={toast.id} className="fixed top-4 inset-x-4 z-[70] mx-auto max-w-sm animate-toast-in pointer-events-none">
           <div
-            className={`rounded-2xl bg-white/85 backdrop-blur-xl border border-white/40 shadow-[0_15px_35px_rgba(16,32,76,0.18)] px-4 py-3 flex items-center gap-2.5 relative overflow-hidden before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 ${
-              toast.kind === "ok" ? "before:bg-emerald-500" : "before:bg-red-500"
-            }`}
+            className={`rounded-2xl bg-white/85 backdrop-blur-xl border border-white/40 shadow-[0_15px_35px_rgba(16,32,76,0.18)] px-4 py-3 flex items-center gap-2.5 relative overflow-hidden before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 ${toast.kind === "ok" ? "before:bg-emerald-500" : "before:bg-red-500"
+              }`}
           >
             <span
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 ${
-                toast.kind === "ok" ? "bg-emerald-500" : "bg-red-500"
-              }`}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 ${toast.kind === "ok" ? "bg-emerald-500" : "bg-red-500"
+                }`}
             >
               {toast.kind === "ok" ? "✓" : "!"}
             </span>
@@ -901,7 +899,6 @@ export default function SupervisorPage() {
                         width={85}
                         height={85}
                         className="h-14 w-14 object-contain drop-shadow-sm sm:h-[72px] sm:w-[72px] md:h-[85px] md:w-[85px]"
-                        priority
                       />
                     </div>
                     <div onClick={cycleField} className="flex shrink-0 flex-col items-center justify-center font-poppins px-1">
@@ -1402,8 +1399,19 @@ export default function SupervisorPage() {
         {confirmFinish && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
             <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-[#10204c]/10 text-[#10204c] flex items-center justify-center text-3xl">
-                ⏱️
+              <div className="w-16 h-16 rounded-full bg-[#10204c]/10 text-[#10204c] flex items-center justify-center">
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-lg font-extrabold text-[#10204c]">¿Finalizar el encuentro?</h3>
@@ -1438,8 +1446,18 @@ export default function SupervisorPage() {
         {showSuccessPopup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
             <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl border border-slate-100 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl">
-                ✓
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-lg font-extrabold text-[#10204c]">¡Enviado con éxito!</h3>
