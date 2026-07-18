@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
         if (userRole === "ADMIN") {
           router.push("/panel/admin");
         } else {
-          router.push("/panel/supervisor/dashboard");
+          router.push("/panel/supervisor");
         }
       } else {
         setError("Correo o contraseña incorrectos");

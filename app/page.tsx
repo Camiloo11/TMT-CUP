@@ -83,8 +83,8 @@ const phaseLabels: Record<string, string> = {
 function toTarjetaProps(m: ApiMatch) {
   const estado =
     m.status === "FINALIZADO" ? ("FINALIZADO" as const)
-    : m.status === "PROGRAMADO" ? ("PROXIMO" as const)
-    : ("VIVO" as const);
+      : m.status === "PROGRAMADO" ? ("PROXIMO" as const)
+        : ("VIVO" as const);
 
   const resumen = (m.events ?? [])
     .slice()
@@ -144,9 +144,9 @@ function SubtituloPartidos({
       dot: null,
     },
     FINALIZADO: {
-      border: "border-slate-200 dark:border-slate-700/60",
-      bg: "bg-slate-50 dark:bg-slate-800/40",
-      text: "text-slate-600 dark:text-slate-300",
+      border: isMasculino ? "border-[#10204c]/25" : "border-[#7c3aed]/25",
+      bg: isMasculino ? "bg-[#10204c]/5" : "bg-[#7c3aed]/5",
+      text: isMasculino ? "text-[#10204c]" : "text-[#7c3aed]",
       icon: "sports_soccer",
       dot: null,
     },
@@ -396,7 +396,7 @@ export default function PublicLivePage() {
 
       <main className="flex-1 w-full flex flex-col justify-start pt-20 min-[375px]:pt-24 sm:pt-28 md:pt-36 lg:pt-40 pb-28 md:pb-12">
         <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2 md:py-6">
-          
+
           {/* ========================================== */}
           {/* 1. MÓVIL: CARRUSEL CON BARRA DE CONTROL */}
           {/* ========================================== */}
@@ -438,11 +438,10 @@ export default function PublicLivePage() {
               <button
                 type="button"
                 onClick={() => setGeneroMovil("masculino")}
-                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${
-                  generoMovil === "masculino"
-                    ? "bg-[#233c97] text-white shadow-md scale-[1.05]"
-                    : "text-[#10204c]/50 hover:text-[#10204c]"
-                }`}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${generoMovil === "masculino"
+                  ? "bg-[#233c97] text-white shadow-md scale-[1.05]"
+                  : "text-[#10204c]/50 hover:text-[#10204c]"
+                  }`}
                 aria-label="Ver torneo masculino"
               >
                 <span className="material-symbols-outlined !text-[24px]">man</span>
@@ -451,11 +450,10 @@ export default function PublicLivePage() {
               <button
                 type="button"
                 onClick={() => setGeneroMovil("femenino")}
-                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${
-                  generoMovil === "femenino"
-                    ? "bg-[#7c3aed] text-white shadow-md scale-[1.05]"
-                    : "text-[#10204c]/50 hover:text-[#10204c]"
-                }`}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 select-none outline-none ${generoMovil === "femenino"
+                  ? "bg-[#7c3aed] text-white shadow-md scale-[1.05]"
+                  : "text-[#10204c]/50 hover:text-[#10204c]"
+                  }`}
                 aria-label="Ver torneo femenino"
               >
                 <span className="material-symbols-outlined !text-[24px]">woman</span>
@@ -467,7 +465,7 @@ export default function PublicLivePage() {
           {/* 2. ESCRITORIO: PARALELO (MASCULINO | FEMENINO) */}
           {/* ========================================== */}
           <div className="hidden md:grid grid-cols-2 gap-16 items-start w-full">
-            
+
             {/* COLUMNA IZQUIERDA: MASCULINO */}
             <div className="space-y-6 flex flex-col items-center w-full" data-theme="masculino">
               <div className="w-full flex justify-center mb-2">
