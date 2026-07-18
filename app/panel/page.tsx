@@ -209,6 +209,7 @@ export default function AdminLoginPage() {
               className="object-cover object-bottom md:object-[center_80%]"
               sizes="(max-width: 768px) 100vw, 50vw"
               loading="eager"
+              unoptimized
             />
           </div>
 

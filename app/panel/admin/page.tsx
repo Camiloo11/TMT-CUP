@@ -542,7 +542,7 @@ export default function AdminSupervisorPage() {
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 !text-[18px]">search</span>
                   <input
                     type="text"
-                    placeholder="Buscar jugador por nombre o documento..."
+                    placeholder="Buscar por jugador, documento o equipo..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-8 h-9 rounded-xl text-xs font-medium bg-[#10204c]/[0.04] border border-transparent focus:bg-white focus:border-[#233c97] focus:outline-none transition-all"
@@ -564,13 +564,16 @@ export default function AdminSupervisorPage() {
                 {equiposConJugadores.map(({ team, jugadores }) => {
                   const isFem = team.category === "FEMENINO";
 
+                  // Una sola caja: busca por jugador (nombre/documento) y TAMBIÉN
+                  // por nombre de equipo (si el equipo coincide, se muestra completo).
+                  const query = searchQuery.toLowerCase().trim();
+                  const coincideEquipo = query !== "" && team.name.toLowerCase().includes(query);
                   const jugadoresFiltrados = jugadores.filter((p) => {
-                    const query = searchQuery.toLowerCase().trim();
-                    if (!query) return true;
+                    if (!query || coincideEquipo) return true;
                     return p.name.toLowerCase().includes(query) || (p.document || "").toLowerCase().includes(query);
                   });
 
-                  if (searchQuery && jugadoresFiltrados.length === 0) return null;
+                  if (searchQuery && !coincideEquipo && jugadoresFiltrados.length === 0) return null;
 
                   return (
                     <div key={team.id} className="rounded-2xl bg-[var(--background)] border border-[var(--border)] overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between">
