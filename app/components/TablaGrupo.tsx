@@ -4,6 +4,7 @@ import { useState } from "react";
 
 interface Equipo {
   nombre: string;
+  bandera?: string; // ruta del SVG local de la bandera (/flags/xx.svg)
   pj: number;
   pg: number;
   pe: number;
@@ -108,6 +109,10 @@ export function TablaGrupo({ nombreGrupo, equipos, genero = "masculino" }: Tabla
                     className="flex-1 min-w-[90px] sm:min-w-[120px] pl-1.5 sm:pl-3 truncate text-[8.5px] min-[375px]:text-xs sm:text-sm md:text-base font-medium tracking-tighter min-[375px]:tracking-normal"
                     style={{ color: isFirst ? "var(--primary)" : "var(--foreground)" }}
                   >
+                    {equipo.bandera && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={equipo.bandera} alt="" className="inline-block h-[0.9em] w-auto rounded-[2px] mr-1.5 align-[-0.08em] shadow-sm" />
+                    )}
                     {equipo.nombre}
                   </div>
 

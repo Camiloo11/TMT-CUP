@@ -1,5 +1,7 @@
 "use client";
 
+import { teamFlagSrc } from "@/lib/flags";
+
 interface TeamPresenceCardProps {
   label: string;
   isPresent: boolean;
@@ -21,8 +23,12 @@ export default function TeamPresenceCard({
           : "border-white/60 bg-white/40 backdrop-blur-md text-[#10204c] hover:border-[#10204c]/20"
       }`}
     >
-      {/* Nombre del Club */}
-      <div className="flex-1 flex items-center justify-center w-full">
+      {/* Nombre del Club (con su bandera) */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full gap-2">
+        {teamFlagSrc(label) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={teamFlagSrc(label)!} alt="" className="h-8 w-auto rounded-md shadow-sm" />
+        )}
         <span className="text-2xl font-light tracking-wide leading-tight line-clamp-2 px-1">
           {label}
         </span>

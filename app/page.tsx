@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
-import { teamEmoji } from "@/lib/team-emoji";
+import { teamFlagSrc } from "@/lib/flags";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { TablaGrupo } from "./components/TablaGrupo";
@@ -115,10 +115,10 @@ function toTarjetaProps(m: ApiMatch) {
     minuto,
     fechaHora: new Date(m.scheduled_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
     equipoLocal: m.teamA?.name ?? "Equipo A",
-    banderaLocal: m.teamA?.flag ?? teamEmoji(m.teamA?.name) ?? undefined,
+    logoLocal: teamFlagSrc(m.teamA?.name) ?? undefined,
     golesLocal: m.score_a ?? 0,
     equipoVisita: m.teamB?.name ?? "Equipo B",
-    banderaVisita: m.teamB?.flag ?? teamEmoji(m.teamB?.name) ?? undefined,
+    logoVisita: teamFlagSrc(m.teamB?.name) ?? undefined,
     golesVisita: m.score_b ?? 0,
     resumen,
   };
@@ -371,9 +371,9 @@ export default function PublicLivePage() {
 
   const adaptarEquipos = (filas: StandingRow[]) =>
     filas.map((f) => {
-      const bandera = f.flag ?? teamEmoji(f.team);
       return {
-      nombre: bandera ? `${bandera} ${f.team}` : f.team,
+      nombre: f.team,
+      bandera: teamFlagSrc(f.team) ?? undefined,
       pj: f.pj,
       pg: f.pg,
       pe: f.pe,

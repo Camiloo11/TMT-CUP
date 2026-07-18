@@ -11,11 +11,11 @@ type Db = ReturnType<typeof getSupabase>;
 //   PROGRAMADO --start_waiting--> EN_ESPERA --kickoff--> EN_JUEGO --finish--> FINALIZADO --publish--> (bloqueado)
 //                                     └--declare_walkover--> FINALIZADO
 //
-// Penalizaciones por retraso (desde waiting_started_at):
+// Penalizaciones por retraso (desde waiting_started_at) — reglas del torneo:
 //   0-2 min  → sin penalización (gracia)
-//   2-4 min  → W_2MIN: arranca con 1 jugador menos (efecto en cancha, solo se registra)
-//   4-6 min  → W_4MIN: arranca con 2 menos y 0-1 en contra (gol automático al rival en el kickoff)
-//   6+  min  → W_6MIN: partido perdido 3-0 (vía declare_walkover)
+//   2-4 min  → W_2MIN: +1 gol a favor del equipo que llegó a tiempo (en el kickoff)
+//   4-6 min  → W_4MIN: +2 goles a favor del equipo que llegó a tiempo (en el kickoff)
+//   6+  min  → W_6MIN: victoria por W 3-0 y 3 puntos (vía declare_walkover)
 
 const GRACE_MIN = 2;
 const ONE_LESS_MIN = 4;
@@ -166,22 +166,26 @@ export async function POST(
       return Response.json({ error: "Ambos equipos deben estar presentes" }, { status: 409 });
     }
 
-    // W_4MIN pendientes → gol automático de oficio para el rival (jugador null, minuto 0)
-    const { data: w4 } = await supabase
+    // Sanciones por retraso → goles de oficio para el rival en el kickoff:
+    // W_2MIN = +1 gol · W_4MIN = +2 goles (jugador null, minuto 0)
+    const { data: wSanctions } = await supabase
       .from("sanctions")
-      .select("team_id")
+      .select("team_id, type")
       .eq("match_id", matchId)
-      .eq("type", "W_4MIN");
+      .in("type", ["W_2MIN", "W_4MIN"]);
 
-    for (const s of w4 ?? []) {
+    for (const s of wSanctions ?? []) {
       const rivalId = s.team_id === match.team_a_id ? match.team_b_id : match.team_a_id;
-      await supabase.from("match_events").insert({
-        match_id: matchId,
-        team_id: rivalId,
-        player_id: null,
-        type: "GOL",
-        minute: 0,
-      });
+      const goles = s.type === "W_4MIN" ? 2 : 1;
+      for (let g = 0; g < goles; g++) {
+        await supabase.from("match_events").insert({
+          match_id: matchId,
+          team_id: rivalId,
+          player_id: null,
+          type: "GOL",
+          minute: 0,
+        });
+      }
     }
 
     const { data, error } = await supabase

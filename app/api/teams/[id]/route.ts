@@ -16,7 +16,12 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const patch: { name?: string; category?: string } = {};
+  const patch: { name?: string; category?: string; debt_paid?: boolean } = {};
+
+  // Deuda de inscripción marcada como saldada (checkbox del registro admin)
+  if (body.debtPaid !== undefined) {
+    patch.debt_paid = Boolean(body.debtPaid);
+  }
 
   if (body.name !== undefined) {
     const name = String(body.name).trim();

@@ -1,5 +1,7 @@
 "use client";
 
+import { teamFlagSrc } from "@/lib/flags";
+
 // Tarjeta de un partido de fase final (lo que entrega /api/brackets)
 type BracketCard = {
   fecha: string;
@@ -25,9 +27,21 @@ export default function FixtureEliminatoria({ genero = "masculino", bracket }: F
   const sf2 = bracket?.semifinales?.[1];
   const fin = bracket?.final ?? null;
 
-  // Nombre con bandera; si el equipo aún no está definido → "Semifinalista N"/"Finalista N"
-  const nombre = (name?: string | null, flag?: string | null, placeholder?: string) =>
-    name ? (flag ? `${flag} ${name}` : name) : (placeholder ?? "Por definir");
+  // Nombre con bandera (imagen local, se ve en todos los navegadores);
+  // si el equipo aún no está definido → "Semifinalista N"/"Finalista N"
+  const nombre = (name?: string | null, _flag?: string | null, placeholder?: string) => {
+    if (!name) return <>{placeholder ?? "Por definir"}</>;
+    const src = teamFlagSrc(name);
+    return (
+      <>
+        {src && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" className="inline-block h-[0.9em] w-auto rounded-[2px] mr-1 align-[-0.08em] shadow-sm" />
+        )}
+        {name}
+      </>
+    );
+  };
   // Marcador: "—" si no hay goles; agrega los penales entre paréntesis si existen
   const marcador = (g?: number, p?: number) =>
     g == null ? "—" : p != null ? `${g} (${p})` : `${g}`;

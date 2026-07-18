@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { teamFlagSrc } from "@/lib/flags";
+
+// Bandera del equipo (SVG local) o sus iniciales si no hay bandera.
+// Rellena el mismo cuadrito avatar existente, sin cambiar estilos.
+function teamBadge(name: string) {
+  const src = teamFlagSrc(name);
+  if (!src) return name.substring(0, 2).toUpperCase();
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={name} className="w-full h-full object-cover rounded-[inherit]" />;
+}
 
 // ==========================================
 // TYPES & INTERFACES
@@ -85,7 +95,7 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
       <div className="flex items-center justify-between gap-4 bg-rose-500/[0.02] border border-rose-500/10 rounded-2xl px-4 py-3 relative z-10 transition-colors group-hover:bg-rose-500/[0.04]">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
-            {match.homeTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.homeTeam)}
           </div>
           <span className="text-sm font-black text-[var(--foreground)] truncate">
             {match.homeTeam}
@@ -99,7 +109,7 @@ function LiveMatchCard({ match, onAction }: MatchCardProps) {
             {match.awayTeam}
           </span>
           <div className="w-10 h-10 rounded-xl bg-rose-500/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-rose-600 border border-rose-500/20 group-hover:scale-105 transition-transform duration-300">
-            {match.awayTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.awayTeam)}
           </div>
         </div>
       </div>
@@ -196,7 +206,7 @@ function FinishedMatchCard({ match }: MatchCardProps) {
       <div className="grid grid-cols-7 items-center justify-between my-2 relative z-10">
         <div className="col-span-3 flex flex-col items-center text-center gap-2">
           <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)]">
-            {match.homeTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.homeTeam)}
           </div>
           <span className="text-xs font-bold text-[var(--foreground)]/80 truncate max-w-full px-1">
             {match.homeTeam}
@@ -213,7 +223,7 @@ function FinishedMatchCard({ match }: MatchCardProps) {
 
         <div className="col-span-3 flex flex-col items-center text-center gap-2">
           <div className="w-11 h-11 rounded-xl bg-[var(--foreground)]/[0.02] flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)]">
-            {match.awayTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.awayTeam)}
           </div>
           <span className="text-xs font-bold text-[var(--foreground)]/80 truncate max-w-full px-1">
             {match.awayTeam}
@@ -285,7 +295,7 @@ function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
       <div className="flex items-center justify-between gap-4 bg-[var(--background)]/40 border border-[var(--border)] group-hover:border-amber-200/50 rounded-2xl px-4 py-3 relative z-10 transition-colors duration-300">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
-            {match.homeTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.homeTeam)}
           </div>
           <span className="text-sm font-bold text-[var(--foreground)]/80 truncate">
             {match.homeTeam}
@@ -299,7 +309,7 @@ function UpcomingMatchCard({ match, onAction }: MatchCardProps) {
             {match.awayTeam}
           </span>
           <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/5 flex-shrink-0 flex items-center justify-center text-xs font-bold text-[var(--primary)] border border-[var(--border)] group-hover:bg-amber-500/5 group-hover:border-amber-200 transition-colors duration-300">
-            {match.awayTeam.substring(0, 2).toUpperCase()}
+            {teamBadge(match.awayTeam)}
           </div>
         </div>
       </div>

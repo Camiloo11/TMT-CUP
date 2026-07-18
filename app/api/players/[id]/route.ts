@@ -22,6 +22,7 @@ export async function PATCH(
     photo_url?: string | null;
     attended?: boolean;
     amount_paid?: number;
+    tmt_status?: string | null;
   } = {};
 
   if (body.name !== undefined) {
@@ -37,6 +38,14 @@ export async function PATCH(
   }
   if (body.attended !== undefined) {
     patch.attended = Boolean(body.attended);
+  }
+  // ¿Hace parte de tMt? (registro del día)
+  if (body.tmtStatus !== undefined) {
+    const valid = ["SI", "NO_QUIERE", "NO_INTERESADO", "NO_ASISTIO"];
+    if (body.tmtStatus !== null && !valid.includes(body.tmtStatus)) {
+      return Response.json({ error: `tmtStatus debe ser uno de: ${valid.join(", ")}` }, { status: 400 });
+    }
+    patch.tmt_status = body.tmtStatus;
   }
   if (body.amountPaid !== undefined) {
     const n = Number(body.amountPaid);

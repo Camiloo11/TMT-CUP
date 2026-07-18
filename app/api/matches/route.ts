@@ -6,7 +6,7 @@ export async function GET() {
   const supabase = getSupabase();
   const { data: matches, error } = await supabase
     .from("matches")
-    .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*), events:match_events(id, type, minute, team_id, player:players(id, name))")
+    .select("*, teamA:teams!matches_team_a_id_fkey(*), teamB:teams!matches_team_b_id_fkey(*), events:match_events(id, type, minute, team_id, player:players(id, name)), incidents(id, type, note, created_at)")
     .order("scheduled_at", { ascending: true }); // 👈 del más próximo al más lejano
 
   if (error) {

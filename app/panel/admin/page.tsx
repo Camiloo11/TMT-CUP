@@ -1,330 +1,56 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { fetchSessionUser } from "@/lib/session-client";
+import { teamFlagSrc } from "@/lib/flags";
 import { HistoryPanel } from "./components/HistoryPanel";
+import {
+  AuditLogCard,
+  FinishedMatchCardMasculino,
+  FinishedMatchCardFemenino,
+  type FinishedMatchActa,
+  type AuditLog,
+} from "./components/actas";
 
 // ── Tipos ──────────────────────────────────────────────────
-type MatchEvent = {
-  id: number;
-  type: "GOL" | "AMARILLA" | "ROJA";
-  minute: number;
-  team: "A" | "B";
-  player: string;
-};
-
-type FinishedMatchActa = {
-  id: number;
-  fieldNumber: number;
-  gender: "masculino" | "femenino";
-  phase: string;
-  teamA: string;
-  logoA?: string;
-  teamB: string;
-  logoB?: string;
-  scoreA: number;
-  scoreB: number;
-  supervisorName: string;
-  finishedAt: string;
-  events: MatchEvent[];
-  incidentsNotes?: string;
-  isLocked: boolean;
-  group?: string;
-};
-
 type AdminPlayer = {
   id: number;
   name: string;
   document?: string | null;
   team_id: number;
   team: { id: number; name: string } | null;
+  attended?: boolean;                // asistencia (check-in del día)
+  tmt_status?: string | null;        // ¿Hace parte de tMt?
 };
 
-type AdminTeam = { id: number; name: string; category: "MASCULINO" | "FEMENINO" };
-
-type AuditLog = {
+type AdminTeam = {
   id: number;
-  adminName: string;
-  adminEmail: string;
-  timestamp: string;
-  action: string;
-  details: string;
-  matchId: number;
-  gender: "masculino" | "femenino";
+  name: string;
+  category: "MASCULINO" | "FEMENINO";
+  debt?: number;                     // deuda de inscripción (COP)
+  debt_paid?: boolean;               // deuda marcada como saldada
 };
 
-// ── Componentes de Soporte (Tarjetas de Auditoría) ────────
-
-function AuditLogCard({ log }: { log: AuditLog }) {
-  const isGol = log.action.toLowerCase().includes("gol");
-
-  let eventosAntes: MatchEvent[] = [];
-  let eventosDespues: MatchEvent[] = [];
-
-  try {
-    const datos = JSON.parse(log.details);
-    eventosAntes = datos.antes || [];
-    eventosDespues = datos.despues || [];
-  } catch (e) {
-    eventosAntes = [];
-    eventosDespues = [];
-  }
-
-  const renderListaEventos = (eventos: MatchEvent[]) => {
-    if (eventos.length === 0) {
-      return <span className="text-[11px] text-gray-400 italic font-light">Sin eventos</span>;
-    }
-    return (
-      <div className="space-y-1 w-full text-left px-1">
-        {eventos.map((ev) => (
-          <div key={ev.id} className="text-[11px] font-light text-gray-700 flex items-center gap-1 bg-white p-1 rounded-lg border border-black/5 truncate">
-            <span className="shrink-0">
-              {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}
-            </span>
-            <span className="truncate">
-              {ev.player} <span className="text-gray-400">({ev.minute}&apos;)</span>
-            </span>
-            <span className="text-[9px] font-medium text-gray-400 bg-gray-100 px-1 rounded-sm shrink-0 ml-auto">
-              {ev.team}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  return (
-    <div className="w-full rounded-2xl p-4 shadow-[0_2px_12px_rgba(16,32,76,0.02)] transition-all font-poppins text-left bg-white border border-gray-100">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-base leading-none">
-          {isGol ? "⚽" : "🟨"}
-        </span>
-        <span className="text-xs font-bold text-[#10204c]/80 tracking-wide">
-          {isGol ? "Ajuste de goles" : "Ajuste de tarjetas"}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-7 items-start bg-gray-50/60 p-3 rounded-xl border border-gray-100 gap-1 min-h-[80px]">
-        <div className="col-span-3 flex flex-col items-center justify-start w-full">
-          <span className="text-[10px] text-gray-400 font-medium mb-2 block text-center">Registro inicial</span>
-          {renderListaEventos(eventosAntes)}
-        </div>
-
-        <div className="col-span-1 flex items-center justify-center text-gray-400 h-full self-center">
-          <span className="material-symbols-outlined !text-[18px] md:!text-[20px]">
-            arrow_forward
-          </span>
-        </div>
-
-        <div className="col-span-3 flex flex-col items-center justify-start w-full">
-          <span className="text-[10px] text-gray-400 font-medium mb-2 block text-center">Resultado final</span>
-          {renderListaEventos(eventosDespues)}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-50 text-[10px] md:text-xs text-gray-400">
-        <span>
-          Por: <strong className="font-semibold text-gray-600">{log.adminName}</strong>
-        </span>
-        <span className="opacity-75">{log.timestamp} hs</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Componentes de Actas de Partido con Incidentes Integrados ──
-
-export function FinishedMatchCardMasculino({ acta, onEdit }: { acta: FinishedMatchActa; onEdit: (acta: FinishedMatchActa) => void }) {
-  return (
-    <div
-      data-theme="masculino"
-      className="w-full rounded-3xl p-4 md:p-6 shadow-[0_4px_20px_rgba(16,32,76,0.02)] transition-all font-poppins"
-      style={{ backgroundColor: "var(--card-strong)", border: "1px solid var(--border)" }}
-    >
-      <div className="flex items-center justify-between border-b border-gray-50 pb-2 md:pb-3 mb-3 md:mb-4">
-        <span className="text-xs md:text-sm font-light tracking-widest" style={{ color: "var(--foreground)", opacity: 0.5 }}>
-          Cancha {acta.fieldNumber} • <span className="font-normal">{acta.phase}</span> {acta.group && `• ${acta.group}`}
-        </span>
-        <span className="px-3 py-1 rounded-full text-[10px] md:text-xs font-medium" style={{ backgroundColor: "rgba(22, 163, 74, 0.1)", color: "var(--success)" }}>
-          Finalizado
-        </span>
-      </div>
-
-      <div className="grid grid-cols-7 items-center justify-between my-2">
-        <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all" style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}>
-            {acta.logoA ? <img src={acta.logoA} alt={acta.teamA} className="w-full h-full object-contain rounded-full" /> : acta.teamA.substring(0, 2).toUpperCase()}
-          </div>
-          <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
-            {acta.teamA}
-          </span>
-        </div>
-
-        <div className="col-span-1 flex items-center justify-center">
-          <div className="font-secondary-modak flex items-baseline justify-center gap-1 tabular-nums transition-all" style={{ fontSize: 'clamp(2.1rem, 4vw, 3.5rem)', lineHeight: 1 }}>
-            <span style={{ color: "var(--primary)" }}>{acta.scoreA}</span>
-            <span className="text-gray-300 font-light text-xl md:text-3xl -mb-0.5">:</span>
-            <span style={{ color: "var(--primary)" }}>{acta.scoreB}</span>
-          </div>
-        </div>
-
-        <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all" style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}>
-            {acta.logoB ? <img src={acta.logoB} alt={acta.teamB} className="w-full h-full object-contain rounded-full" /> : acta.teamB.substring(0, 2).toUpperCase()}
-          </div>
-          <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
-            {acta.teamB}
-          </span>
-        </div>
-      </div>
-
-      {acta.events.length > 0 && (
-        <div className="border-t border-gray-50 mt-4 pt-3 text-[11px] md:text-xs space-y-2" style={{ color: "var(--foreground)", opacity: 0.7 }}>
-          {acta.events.map((ev) => (
-            <div key={ev.id} className="grid grid-cols-2 gap-4">
-              <div className="text-left pl-1 min-h-[16px] font-light">
-                {ev.team === "A" && (
-                  <span>
-                    {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"} {ev.player} ({ev.minute}&apos;)
-                  </span>
-                )}
-              </div>
-              <div className="text-right pr-1 min-h-[16px] font-light">
-                {ev.team === "B" && (
-                  <span>
-                    {ev.player} ({ev.minute}&apos;) {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {acta.incidentsNotes && (
-        <div className="mt-4 p-3 rounded-2xl bg-amber-50/60 border border-amber-100 text-left">
-          <span className="text-[12px] font-medium tracking-wider text-amber-800 flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes:
-          </span>
-          <p className="text-xs font-light text-amber-950 mt-1 italic">&quot;{acta.incidentsNotes}&quot;</p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-        <div className="flex flex-col text-gray-400 justify-center text-left">
-          <span className="text-[10px] md:text-xs leading-tight">
-            Enviado por: <strong className="font-semibold" style={{ color: "var(--foreground)" }}>{acta.supervisorName}</strong>
-          </span>
-          <span className="text-[9px] md:text-[11px] opacity-75">{acta.finishedAt} hs</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => onEdit(acta)}
-          className="bg-[#233c97] hover:bg-[#1a2e75] text-white font-bold rounded-full shadow-md hover:shadow-lg transition-all duration-200 active:scale-95 whitespace-nowrap flex items-center justify-center h-8 min-[375px]:h-9 md:h-10 text-[9px] min-[375px]:text-[10px] min-[425px]:text-xs md:text-xs lg:text-xs px-4 min-[375px]:px-5 md:px-6 py-2.5"
-        >
-          Editar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function FinishedMatchCardFemenino({ acta, onEdit }: { acta: FinishedMatchActa; onEdit: (acta: FinishedMatchActa) => void }) {
-  return (
-    <div
-      data-theme="femenino"
-      className="w-full rounded-3xl p-4 md:p-6 shadow-[0_4px_20px_rgba(16,32,76,0.02)] transition-all font-poppins"
-      style={{ backgroundColor: "var(--card-strong)", border: "1px solid var(--border)" }}
-    >
-      <div className="flex items-center justify-between border-b border-gray-50 pb-2 md:pb-3 mb-3 md:mb-4">
-        <span className="text-xs md:text-sm font-light tracking-widest" style={{ color: "var(--foreground)", opacity: 0.5 }}>
-          Cancha {acta.fieldNumber} • <span className="font-normal">{acta.phase}</span> {acta.group && `• ${acta.group}`}
-        </span>
-        <span className="px-3 py-1 rounded-full text-[10px] md:text-xs font-medium" style={{ backgroundColor: "rgba(13, 148, 136, 0.1)", color: "var(--success)" }}>
-          Finalizado
-        </span>
-      </div>
-
-      <div className="grid grid-cols-7 items-center justify-between my-2">
-        <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all" style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}>
-            {acta.logoA ? <img src={acta.logoA} alt={acta.teamA} className="w-full h-full object-contain rounded-full" /> : acta.teamA.substring(0, 2).toUpperCase()}
-          </div>
-          <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
-            {acta.teamA}
-          </span>
-        </div>
-
-        <div className="col-span-1 flex items-center justify-center">
-          <div className="font-secondary-modak flex items-baseline justify-center gap-1 tabular-nums transition-all" style={{ fontSize: 'clamp(2.1rem, 4vw, 3.5rem)', lineHeight: 1 }}>
-            <span style={{ color: "var(--primary)" }}>{acta.scoreA}</span>
-            <span className="text-gray-300 font-light text-xl md:text-3xl -mb-0.5">:</span>
-            <span style={{ color: "var(--primary)" }}>{acta.scoreB}</span>
-          </div>
-        </div>
-
-        <div className="col-span-3 flex flex-col items-center text-center gap-2">
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs md:text-base font-normal border border-gray-100 shadow-sm transition-all" style={{ backgroundColor: "rgba(16, 32, 76, 0.02)", color: "var(--primary)" }}>
-            {acta.logoB ? <img src={acta.logoB} alt={acta.teamB} className="w-full h-full object-contain rounded-full" /> : acta.teamB.substring(0, 2).toUpperCase()}
-          </div>
-          <span className="text-xs md:text-sm font-medium truncate max-w-full px-1" style={{ color: "var(--foreground)" }}>
-            {acta.teamB}
-          </span>
-        </div>
-      </div>
-
-      {acta.events.length > 0 && (
-        <div className="border-t border-gray-50 mt-4 pt-3 text-[11px] md:text-xs space-y-2" style={{ color: "var(--foreground)", opacity: 0.7 }}>
-          {acta.events.map((ev) => (
-            <div key={ev.id} className="grid grid-cols-2 gap-4">
-              <div className="text-left pl-1 min-h-[16px] font-light">
-                {ev.team === "A" && (
-                  <span>
-                    {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"} {ev.player} ({ev.minute}&apos;)
-                  </span>
-                )}
-              </div>
-              <div className="text-right pr-1 min-h-[16px] font-light">
-                {ev.team === "B" && (
-                  <span>
-                    {ev.player} ({ev.minute}&apos;) {ev.type === "GOL" ? "⚽" : ev.type === "AMARILLA" ? "🟨" : "🟥"}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {acta.incidentsNotes && (
-        <div className="mt-4 p-3 rounded-2xl bg-amber-50/60 border border-amber-100 text-left">
-          <span className="text-[12px] font-medium tracking-wider text-amber-800 flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[14px]">warning</span> Incidentes:
-          </span>
-          <p className="text-xs font-light text-amber-950 mt-1 italic">&quot;{acta.incidentsNotes}&quot;</p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-        <div className="flex flex-col text-gray-400 justify-center text-left">
-          <span className="text-[10px] md:text-xs leading-tight">
-            Enviado por: <strong className="font-semibold" style={{ color: "var(--foreground)" }}>{acta.supervisorName}</strong>
-          </span>
-          <span className="text-[9px] md:text-[11px] opacity-75">{acta.finishedAt} hs</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => onEdit(acta)}
-          className="bg-[#233c97] hover:bg-[#1a2e75] text-white font-bold rounded-full shadow-md hover:shadow-lg transition-all duration-200 active:scale-95 whitespace-nowrap flex items-center justify-center h-8 min-[375px]:h-9 md:h-10 text-[9px] min-[375px]:text-[10px] min-[425px]:text-xs md:text-xs lg:text-xs px-4 min-[375px]:px-5 md:px-6 py-2.5"
-        >
-          Editar
-        </button>
-      </div>
-    </div>
-  );
-}
+// Respuesta cruda de /api/matches que necesita la mesa admin
+type ApiAdminMatch = {
+  id: number;
+  status: string;
+  phase: string;
+  category: string | null;
+  field_number: number;
+  scheduled_at: string;
+  finished_at: string | null;
+  published_at: string | null;
+  score_a: number | null;
+  score_b: number | null;
+  team_a_id: number | null;
+  teamA: { name: string } | null;
+  teamB: { name: string } | null;
+  events?: Array<{ id: number; type: "GOL" | "AMARILLA" | "ROJA"; minute: number | null; team_id: number; player: { id: number; name: string } | null }>;
+  incidents?: Array<{ id: number; type: string; note: string | null }>;
+};
 
 // ── Componente Principal ────────────────────────────────────
 
@@ -343,13 +69,8 @@ export default function AdminSupervisorPage() {
   const [playerIdQuery, setPlayerIdQuery] = useState("");
   const [playerNameQuery, setPlayerNameQuery] = useState("");
 
-  // ── Registro: fotos de jugadores capturadas en el momento ──
-  const [playerPhotos, setPlayerPhotos] = useState<Record<number, string>>({});
-  const [cameraTarget, setCameraTarget] = useState<AdminPlayer | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // ── Registro: dropdown "¿Hace parte de tMt?" abierto (id del jugador) ──
+  const [openTmtPlayer, setOpenTmtPlayer] = useState<number | null>(null);
 
   const navTabs = [{ label: "Dashboard" }, { label: "Registro" }];
 
@@ -373,49 +94,121 @@ export default function AdminSupervisorPage() {
     fetch("/api/teams").then((r) => r.json()).then((d) => setTeams(Array.isArray(d) ? d : [])).catch(() => setTeams([]));
   }, []);
 
-  const [actas, setActas] = useState<FinishedMatchActa[]>([
-    { id: 201, fieldNumber: 2, gender: "masculino", phase: "Fase de Grupos", group: "Grupo A", teamA: "Lions FC", teamB: "Tigres B", scoreA: 3, scoreB: 1, supervisorName: "Carlos Pérez", finishedAt: "13:45", isLocked: false, incidentsNotes: "Reclamo menor por conducta antideportiva en el banco de suplentes.", events: [{ id: 1, type: "GOL", minute: 10, team: "A", player: "Mateo Gómez" }] },
-    { id: 202, fieldNumber: 3, gender: "femenino", phase: "Semifinal", teamA: "Atenas FC", teamB: "Spartans Fem", scoreA: 2, scoreB: 2, supervisorName: "Laura R.", finishedAt: "15:10", isLocked: false, incidentsNotes: "Ingreso no autorizado de personal médico externo sin previo aviso.", events: [{ id: 2, type: "GOL", minute: 22, team: "A", player: "Lucía Pérez" }, { id: 3, type: "GOL", minute: 45, team: "B", player: "Ana Martínez" }] }
-  ]);
+  // ── Actas e historial REALES (Supabase vía /api/matches y /api/audit) ──
+  const [actas, setActas] = useState<FinishedMatchActa[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([
-    { id: 1, adminName: "Admin Principal", adminEmail: "admin@tmtcup.com", timestamp: "16:42", action: "Ajuste de goles", details: JSON.stringify({ antes: [{ id: 2, type: "GOL", minute: 22, team: "A", player: "Lucía Pérez" }], despues: [{ id: 2, type: "GOL", minute: 22, team: "A", player: "Lucía Pérez" }, { id: 3, type: "GOL", minute: 45, team: "B", player: "Ana Martínez" }] }), matchId: 202, gender: "femenino" }
-  ]);
+  const PHASE_LABEL: Record<string, string> = {
+    GRUPOS: "Fase de Grupos", CUARTOS: "Cuartos de Final", SEMIFINAL: "Semifinal", FINAL: "Final",
+  };
+  const hora = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+
+  const cargarActasYAuditoria = async () => {
+    const [matchesRes, agendaRes, auditRes] = await Promise.all([
+      fetch("/api/matches").then((r) => r.json()).catch(() => []),
+      fetch("/api/agenda").then((r) => r.json()).catch(() => []),
+      fetch("/api/audit").then((r) => r.json()).catch(() => []),
+    ]);
+
+    // Supervisor por cancha (agenda del día)
+    const supervisorPorCancha = new Map<number, string>();
+    for (const a of Array.isArray(agendaRes) ? agendaRes : []) {
+      supervisorPorCancha.set(a.field_number, a.supervisor_name);
+    }
+
+    const finalizados = (Array.isArray(matchesRes) ? (matchesRes as ApiAdminMatch[]) : [])
+      .filter((m) => m.status === "FINALIZADO");
+
+    setActas(finalizados.map((m) => ({
+      id: m.id,
+      fieldNumber: m.field_number,
+      gender: m.category === "FEMENINO" ? "femenino" : "masculino",
+      phase: PHASE_LABEL[m.phase] ?? m.phase,
+      teamA: m.teamA?.name ?? "Por definir",
+      logoA: teamFlagSrc(m.teamA?.name) ?? undefined,
+      teamB: m.teamB?.name ?? "Por definir",
+      logoB: teamFlagSrc(m.teamB?.name) ?? undefined,
+      scoreA: m.score_a ?? 0,
+      scoreB: m.score_b ?? 0,
+      supervisorName: supervisorPorCancha.get(m.field_number) ?? "Supervisor",
+      finishedAt: hora(m.finished_at ?? m.scheduled_at),
+      isLocked: !!m.published_at,
+      incidentsNotes: (m.incidents ?? []).map((i) => i.note).filter(Boolean).join(" · ") || undefined,
+      events: (m.events ?? []).map((ev) => ({
+        id: ev.id,
+        type: ev.type,
+        minute: ev.minute ?? 0,
+        team: (ev.team_id === m.team_a_id ? "A" : "B") as "A" | "B",
+        player: ev.player?.name ?? "De oficio",
+      })),
+    })));
+
+    setAuditLogs((Array.isArray(auditRes) ? auditRes : []).map((l: { id: number; admin_name: string; action: string; details: string; match_id: number | null; gender: string | null; created_at: string }) => ({
+      id: l.id,
+      adminName: l.admin_name,
+      adminEmail: "",
+      timestamp: hora(l.created_at),
+      action: l.action,
+      details: l.details,
+      matchId: l.match_id ?? 0,
+      gender: (l.gender === "femenino" ? "femenino" : "masculino") as "masculino" | "femenino",
+    })));
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- los setState ocurren tras el fetch (async), no en el render
+    cargarActasYAuditoria();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga única al montar
+  }, []);
 
   const [actaEdicion, setActaEdicion] = useState<FinishedMatchActa | null>(null);
   // Jugador cuyo menú de eventos (+/-) está abierto en el roster del modal
   const [openActaPlayer, setOpenActaPlayer] = useState<string | null>(null);
+  const [guardandoActa, setGuardandoActa] = useState(false);
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
-  const abrirEdicionActa = (acta: FinishedMatchActa) => { setActaEdicion(JSON.parse(JSON.stringify(acta))); };
+  const abrirEdicionActa = (acta: FinishedMatchActa) => {
+    setErrorGuardado(null);
+    setActaEdicion(JSON.parse(JSON.stringify(acta)));
+  };
 
-  const guardarCambiosActa = (e: React.FormEvent) => {
+  // Guarda el acta EN EL BACKEND (marcador + eventos + nota de incidentes).
+  // El servidor escribe también la fila de auditoría; al volver, se refresca todo.
+  const guardarCambiosActa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!actaEdicion) return;
-    const actaOriginal = actas.find((a) => a.id === actaEdicion.id);
-
-    const detalleEstructurado = JSON.stringify({
-      antes: actaOriginal?.events || [],
-      despues: actaEdicion.events || []
-    });
-
-    const cambioGoles = actaOriginal?.scoreA !== actaEdicion.scoreA || actaOriginal?.scoreB !== actaEdicion.scoreB;
-    const tipoAccion = cambioGoles ? "Ajuste de goles" : "Ajuste de tarjetas";
-
-    setActas((prev) => prev.map((a) => (a.id === actaEdicion.id ? actaEdicion : a)));
-    setAuditLogs((prev) => [
-      {
-        id: Date.now(),
-        adminName: "Super Admin",
-        adminEmail: "admin@tmtcup.com",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        action: tipoAccion,
-        details: detalleEstructurado,
-        matchId: actaEdicion.id,
-        gender: actaEdicion.gender
-      },
-      ...prev
-    ]);
-    setActaEdicion(null);
+    if (!actaEdicion || guardandoActa) return;
+    setGuardandoActa(true);
+    setErrorGuardado(null);
+    try {
+      const res = await fetch(`/api/matches/${actaEdicion.id}/acta`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scoreA: actaEdicion.scoreA,
+          scoreB: actaEdicion.scoreB,
+          incidentNote: actaEdicion.incidentsNotes ?? "",
+          events: actaEdicion.events.map((ev) => ({
+            type: ev.type,
+            minute: ev.minute,
+            side: ev.team,
+            player: ev.player,
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErrorGuardado(data?.error ?? "No se pudo guardar el acta. Intenta de nuevo.");
+        return;
+      }
+      await cargarActasYAuditoria();
+      setActaEdicion(null);
+      setOpenActaPlayer(null);
+    } catch {
+      setErrorGuardado("Sin conexión con el servidor. Intenta de nuevo.");
+    } finally {
+      setGuardandoActa(false);
+    }
   };
 
   const agregarEventoEnEdicion = (tipo: "GOL" | "AMARILLA" | "ROJA", equipo: "A" | "B", minuto: number, jugador: string) => {
@@ -430,8 +223,8 @@ export default function AdminSupervisorPage() {
     if (!actaEdicion) return;
     const ev = actaEdicion.events.find((e) => e.id === eventoId);
     if (!ev) return;
-    let restaA = ev.type === "GOL" && ev.team === "A" ? 1 : 0;
-    let restaB = ev.type === "GOL" && ev.team === "B" ? 1 : 0;
+    const restaA = ev.type === "GOL" && ev.team === "A" ? 1 : 0;
+    const restaB = ev.type === "GOL" && ev.team === "B" ? 1 : 0;
     setActaEdicion({ ...actaEdicion, scoreA: Math.max(0, actaEdicion.scoreA - restaA), scoreB: Math.max(0, actaEdicion.scoreB - restaB), events: actaEdicion.events.filter((e) => e.id !== eventoId) });
   };
 
@@ -459,7 +252,17 @@ export default function AdminSupervisorPage() {
     if (ultimo) eliminarEventoEnEdicion(ultimo.id);
   };
 
-  const handleLogout = () => { router.push("/panel"); };
+  // Cerrar sesión DE VERDAD: borra las cookies en el servidor y luego
+  // redirige. (Antes solo navegaba a /panel y la sesión viva te devolvía
+  // al admin de inmediato — por eso "no funcionaba".)
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // sin red: igual salimos de la vista
+    }
+    router.replace("/panel");
+  };
 
   // Filtra jugadores de cada equipo según los buscadores de ID y nombre (aplican en conjunto)
   const jugadorCoincideBusqueda = (p: AdminPlayer) => {
@@ -478,68 +281,43 @@ export default function AdminSupervisorPage() {
     jugadoresFiltrados: players.filter((p) => p.team_id === t.id && jugadorCoincideBusqueda(p))
   }));
 
-  // ── Cámara: iniciar/detener el stream cuando se abre o cierra el modal ──
-  useEffect(() => {
-    if (!cameraTarget) return;
-    setCameraError(null);
-    let cancelado = false;
+  // ── "¿Hace parte de tMt?": opciones del dropdown y persistencia ──
+  const TMT_OPTIONS = [
+    { value: "SI", label: "Sí", dot: "bg-emerald-500" },
+    { value: "NO_QUIERE", label: "No, pero quiere hacer parte", dot: "bg-amber-400" },
+    { value: "NO_INTERESADO", label: "No, no está interesado", dot: "bg-gray-400" },
+    { value: "NO_ASISTIO", label: "No asistió", dot: "bg-red-400" },
+  ] as const;
 
-    navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-      .then((stream) => {
-        if (cancelado) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      })
-      .catch(() => {
-        if (!cancelado) setCameraError("No se pudo acceder a la cámara. Verifica los permisos del navegador.");
-      });
-
-    return () => {
-      cancelado = true;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    };
-  }, [cameraTarget]);
-
-  const abrirCamaraParaJugador = (player: AdminPlayer) => {
-    setCameraError(null);
-    setCameraTarget(player);
-  };
-
-  const cerrarCamara = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setCameraTarget(null);
-    setCameraError(null);
-  };
-
-  const capturarFoto = () => {
-    if (!cameraTarget || !videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current || document.createElement("canvas");
-    canvas.width = video.videoWidth || 480;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
-    setPlayerPhotos((prev) => ({ ...prev, [cameraTarget.id]: dataUrl }));
-
-    // Intento de persistencia en backend (ajustar endpoint real cuando esté disponible)
-    fetch(`/api/players/${cameraTarget.id}/photo`, {
+  const marcarTmt = (playerId: number, value: string) => {
+    const nuevo = players.find((p) => p.id === playerId)?.tmt_status === value ? null : value;
+    setPlayers((prev) => prev.map((p) => (p.id === playerId ? { ...p, tmt_status: nuevo } : p)));
+    setOpenTmtPlayer(null);
+    fetch(`/api/players/${playerId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photo: dataUrl })
+      body: JSON.stringify({ tmtStatus: nuevo }),
     }).catch(() => { });
+  };
 
-    cerrarCamara();
+  // Asistencia (check del registro) persistida en players.attended
+  const marcarAsistencia = (playerId: number, attended: boolean) => {
+    setPlayers((prev) => prev.map((p) => (p.id === playerId ? { ...p, attended } : p)));
+    fetch(`/api/players/${playerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attended }),
+    }).catch(() => { });
+  };
+
+  // Deuda del equipo marcada como saldada (o no) desde el registro
+  const marcarDeuda = (teamId: number, debtPaid: boolean) => {
+    setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, debt_paid: debtPaid } : t)));
+    fetch(`/api/teams/${teamId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ debtPaid }),
+    }).catch(() => { });
   };
 
   const actasFiltradas = actas.filter((acta) => {
@@ -796,8 +574,13 @@ export default function AdminSupervisorPage() {
                       {/* Cabecera del Equipo */}
                       <div className={`p-3 border-b flex items-center justify-between gap-2 ${isFem ? "bg-purple-50/40 border-purple-100/60 text-purple-950" : "bg-blue-50/40 border-blue-100/60 text-blue-950"}`}>
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-6 h-6 rounded-full bg-white border border-black/5 flex items-center justify-center text-xs shrink-0 select-none">
-                            ⚽
+                          <div className="w-6 h-6 rounded-full bg-white border border-black/5 flex items-center justify-center text-xs shrink-0 select-none overflow-hidden">
+                            {teamFlagSrc(team.name) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={teamFlagSrc(team.name)!} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              "⚽"
+                            )}
                           </div>
                           <h3 className="text-xs min-[375px]:text-sm font-medium tracking-wide truncate text-[#10204c]">
                             {team.name}
@@ -811,77 +594,105 @@ export default function AdminSupervisorPage() {
                       {/* Lista Interna del Equipo */}
                       <div className="p-3 space-y-2 flex-1 max-h-72 overflow-y-auto no-scrollbar" style={{ scrollbarWidth: "none" }}>
                         {jugadoresFiltrados.map((p, idx) => {
-                          const isRegistered = (p as any).registered === true;
+                          const isRegistered = p.attended === true;
+                          const tmtActual = TMT_OPTIONS.find((o) => o.value === p.tmt_status) ?? null;
+                          const tmtOpen = openTmtPlayer === p.id;
 
                           return (
-                            <div key={p.id} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-black/5 shadow-xs transition-all hover:border-gray-200">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[10px] font-medium text-gray-400 w-4 shrink-0 text-right">{idx + 1}.</span>
-                                <div className="flex flex-col min-w-0">
-                                  <span className="font-medium text-[11.5px] text-[#10204c]/90 truncate">{p.name}</span>
-                                  <span className="text-[9.5px] font-light text-gray-400">{p.document || "Sin Documento"}</span>
+                            <div key={p.id} className="flex flex-col gap-2 p-2 rounded-xl bg-white border border-black/5 shadow-xs transition-all hover:border-gray-200">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-[10px] font-medium text-gray-400 w-4 shrink-0 text-right">{idx + 1}.</span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-medium text-[11.5px] text-[#10204c]/90 truncate">{p.name}</span>
+                                    <span className="text-[9.5px] font-light text-gray-400">{p.document || "Sin Documento"}</span>
+                                  </div>
+                                </div>
+
+                                {/* Controles: tMt + Registro (asistencia) */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+
+                                  {/* Botón tMt → despliega "¿Hace parte de tMt?" */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenTmtPlayer(tmtOpen ? null : p.id)}
+                                    title="¿Hace parte de tMt?"
+                                    className={`flex items-center justify-center gap-1 h-7 px-2 rounded-lg border text-[10px] font-black tracking-tight transition-all duration-200 active:scale-95 ${tmtActual
+                                      ? "bg-[#233c97] border-[#233c97] text-white shadow-sm"
+                                      : "bg-gray-50 border-black/5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                      }`}
+                                  >
+                                    tMt
+                                    {tmtActual && <span className={`w-1.5 h-1.5 rounded-full ${tmtActual.dot}`} />}
+                                  </button>
+
+                                  {/* Registro / asistencia (persistido en Supabase) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => marcarAsistencia(p.id, !isRegistered)}
+                                    className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-200 ${isRegistered
+                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
+                                      : "bg-gray-50 border-black/5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:scale-95"
+                                      }`}
+                                    title={isRegistered ? "Quitar registro" : "Confirmar registro"}
+                                  >
+                                    <span className="material-symbols-outlined !text-[16px] font-bold">
+                                      {isRegistered ? "check" : "how_to_reg"}
+                                    </span>
+                                  </button>
+
                                 </div>
                               </div>
 
-                              {/* Controles de Foto y Registro */}
-                              <div className="flex items-center gap-1.5 shrink-0">
-
-                                {/* Módulo de Foto */}
-                                <label className="cursor-pointer flex items-center justify-center w-7 h-7 rounded-lg bg-gray-50 text-gray-500 hover:bg-[#233c97] hover:text-white border border-black/5 transition-all duration-200" title="Tomar Foto">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    capture="user"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        const imageUrl = URL.createObjectURL(file);
-                                        setPlayers(prev => prev.map(player => player.id === p.id ? { ...player, fotoUrl: imageUrl } : player));
-                                      }
-                                    }}
-                                  />
-                                  <span className="material-symbols-outlined !text-[15px]">photo_camera</span>
-                                </label>
-
-                                {((p as any).fotoUrl) && (
-                                  <div className="relative w-7 h-7 rounded-lg overflow-hidden border border-emerald-500 bg-gray-100 group">
-                                    <img src={(p as any).fotoUrl} alt="Preview" className="w-full h-full object-cover" />
-                                    <button
-                                      type="button"
-                                      onClick={() => setPlayers(prev => prev.map(player => player.id === p.id ? { ...player, fotoUrl: undefined } : player))}
-                                      className="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <span className="material-symbols-outlined !text-[12px]">delete</span>
-                                    </button>
-                                  </div>
-                                )}
-
-                                {/* Botón de Registro Toggle */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPlayers(prev => prev.map(player => player.id === p.id ? { ...player, registered: !isRegistered } : player));
-                                  }}
-                                  className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-200 ${isRegistered
-                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
-                                      : "bg-gray-50 border-black/5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:scale-95"
-                                    }`}
-                                  title={isRegistered ? "Quitar registro" : "Confirmar registro"}
-                                >
-                                  <span className="material-symbols-outlined !text-[16px] font-bold">
-                                    {isRegistered ? "check" : "how_to_reg"}
-                                  </span>
-                                </button>
-
-                              </div>
+                              {/* Desplegable ¿Hace parte de tMt? */}
+                              {tmtOpen && (
+                                <div className="rounded-xl bg-gray-50/80 border border-black/5 p-1.5 space-y-1">
+                                  <span className="block text-[9px] font-bold text-gray-400 tracking-wider uppercase px-1">¿Hace parte de tMt?</span>
+                                  {TMT_OPTIONS.map((opt) => {
+                                    const activo = p.tmt_status === opt.value;
+                                    return (
+                                      <button
+                                        key={opt.value}
+                                        type="button"
+                                        onClick={() => marcarTmt(p.id, opt.value)}
+                                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[10.5px] font-semibold transition-all active:scale-[0.98] ${activo
+                                          ? "bg-[#233c97] text-white shadow-sm"
+                                          : "bg-white text-[#10204c]/75 border border-black/5 hover:border-[#233c97]/30"
+                                          }`}
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${opt.dot}`} />
+                                        {opt.label}
+                                        {activo && <span className="material-symbols-outlined !text-[13px] ml-auto">check</span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Footer de la tarjeta */}
-                      <div className="p-2.5 bg-gray-50/40 border-t border-[var(--border)] text-right">
+                      {/* Footer: deuda del equipo (izquierda) + participantes (derecha) */}
+                      <div className="p-2.5 bg-gray-50/40 border-t border-[var(--border)] flex items-center justify-between gap-2">
+                        {(team.debt ?? 0) > 0 ? (
+                          <label className={`flex items-center gap-1.5 cursor-pointer select-none rounded-lg px-2 py-1 border transition-all ${team.debt_paid
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                            : "bg-red-50 border-red-200 text-red-600"
+                            }`}>
+                            <input
+                              type="checkbox"
+                              checked={team.debt_paid === true}
+                              onChange={(e) => marcarDeuda(team.id, e.target.checked)}
+                              className="h-3 w-3 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span className="text-[9.5px] font-bold tracking-tight">
+                              {team.debt_paid ? "Deuda saldada" : `Debe $${(team.debt ?? 0).toLocaleString("es-CO")}`}
+                            </span>
+                          </label>
+                        ) : (
+                          <span className="text-[9.5px] font-semibold text-emerald-600/70 px-1">Sin deuda</span>
+                        )}
                         <span className="text-[10px] font-normal text-gray-400">
                           {jugadoresFiltrados.length} registrados
                         </span>
@@ -1009,55 +820,16 @@ export default function AdminSupervisorPage() {
                 <label className="block text-[13px] font-medium opacity-70 tracking-wider mb-1">Incidentes</label>
                 <textarea rows={2} value={actaEdicion.incidentsNotes || ""} onChange={(e) => setActaEdicion({ ...actaEdicion, incidentsNotes: e.target.value })} placeholder="Describe cualquier incidente del partido…" className="w-full p-2 text-xs rounded-xl border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
               </div>
+              {errorGuardado && (
+                <div className="rounded-xl bg-red-50 border border-red-200 p-2.5 text-center text-[11px] font-semibold text-red-600">
+                  {errorGuardado}
+                </div>
+              )}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
                 <button type="button" onClick={() => { setActaEdicion(null); setOpenActaPlayer(null); }} className="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100">Cancelar</button>
-                <button type="submit" className="px-5 py-2 rounded-full bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1">Guardar</button>
+                <button type="submit" disabled={guardandoActa} className="px-5 py-2 rounded-full bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1 disabled:opacity-50">{guardandoActa ? "Guardando..." : "Guardar"}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE CÁMARA: captura de foto del jugador en el momento del registro */}
-      {cameraTarget && (
-        <div className="fixed inset-0 z-[160] bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 no-scrollbar">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-4 min-[375px]:p-5 border border-[var(--border)] shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold text-[var(--primary)] truncate">Foto de {cameraTarget.name}</h3>
-                <p className="text-[10px] opacity-60">{cameraTarget.team?.name || "Sin equipo"}</p>
-              </div>
-              <button onClick={cerrarCamara} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[18px]">close</span>
-              </button>
-            </div>
-
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-black flex items-center justify-center">
-              {cameraError ? (
-                <div className="text-center px-4 space-y-2">
-                  <span className="material-symbols-outlined !text-[28px] text-white/70">videocam_off</span>
-                  <p className="text-[11px] text-white/80">{cameraError}</p>
-                </div>
-              ) : (
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              )}
-            </div>
-            <canvas ref={canvasRef} className="hidden" />
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button type="button" onClick={cerrarCamara} className="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={capturarFoto}
-                disabled={!!cameraError}
-                className="px-5 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold shadow-sm hover:opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span className="material-symbols-outlined !text-[16px]">photo_camera</span>
-                Capturar foto
-              </button>
-            </div>
           </div>
         </div>
       )}

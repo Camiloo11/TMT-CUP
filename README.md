@@ -1,99 +1,140 @@
 # TMT-CUP
 
-App para gestionar un torneo de fútbol: equipos, sorteo de grupos, partidos,
-tabla de posiciones y sanciones. Está construida con [Next.js](https://nextjs.org)
-(App Router) y [Supabase](https://supabase.com) como base de datos.
+App para gestionar el torneo TMT CUP: vista pública en vivo (websockets),
+mesa de control del supervisor por cancha y mesa administradora. Construida
+con [Next.js](https://nextjs.org) (App Router) y [Supabase](https://supabase.com).
 
 ## Stack
 
 - **Next.js 16** (App Router, route handlers en `app/api/**`)
-- **Supabase** (Postgres administrado, sin ORM)
+- **Supabase** (Postgres administrado + Realtime, sin ORM)
 - **Tailwind CSS 4**
 - **pnpm** como gestor de paquetes
 
 ## Estructura
 
-La estructura actual del repo es esta:
-
 ```
 app/
-  api/            # route handlers del backend (teams, matches, draw, etc.)
-  layout.tsx      # layout raíz de la app
-  page.tsx        # pantalla principal actual
+  page.tsx                  # vista PUBLICA: grupos, partidos en vivo y fase final
+  components/               # componentes de la vista publica (tarjetas, tabla, arbol)
+  panel/
+    page.tsx                # login del staff
+    admin/
+      page.tsx              # mesa administradora (actas, auditoria, registro)
+      components/           # actas.tsx, HistoryPanel.tsx
+    supervisor/
+      page.tsx              # mesa de control del supervisor (espera -> vivo -> resumen)
+      components/           # MatchCardContainer, TeamPresenceCard, ControlAlertPopup, SummaryBlocks
+  api/                      # backend (route handlers)
+    agenda/                 # asignaciones del dia + partidos por cancha
+    audit/                  # historial de ediciones de actas (admin)
+    auth/                   # login, logout, me, refresh, users (crear staff)
+    brackets/               # fase final para la vista publica
+    matches/                # partidos + [id]/events, [id]/lifecycle, [id]/incidents, [id]/acta
+    players/                # jugadores (+ PATCH: asistencia, tMt)
+    standings/              # tabla de posiciones por grupo
+    teams/                  # equipos (+ PATCH: deuda saldada)
 lib/
-  supabase.ts     # cliente de Supabase en servidor (service_role key)
+  supabase.ts               # cliente de SERVIDOR (service_role) - solo /app/api/*
+  supabase-browser.ts       # cliente de NAVEGADOR (anon) - Realtime de la publica
+  flags.ts                  # banderas de equipos (SVG locales en /public/flags)
+  suspensions.ts            # sanciones por tarjetas (amarillas/rojas entre partidos)
+  tournament.ts             # avance automatico de fase (grupos -> semis -> final)
+  auth.ts / session-client.ts
+public/flags/               # banderas SVG (country-flag-icons, MIT)
 supabase/
-  migrations/     # esquema SQL y funciones RPC
-  README.md       # guía para levantar la base online
-public/           # assets estáticos
+  migrations/               # esquema SQL incremental
+  setup_completo.sql        # TODO en un script (correr en Supabase -> SQL Editor)
+  seed_real.sql             # datos reales del torneo (equipos, fixture, agenda)
 ```
 
-### Base de datos
+## Reglas del torneo implementadas
 
-- `20260703000000_create_tables.sql` crea enums, tablas, índices y RLS.
-- `20260703000001_create_functions.sql` agrega las funciones RPC usadas por
-  operaciones atómicas.
-
-## Requisitos previos
-
-- Node.js 20+ (o una versión compatible con Next.js 16)
-- `pnpm`
-- Un proyecto activo de Supabase
+- **Clasificacion**: 1ro de cada grupo (A/B/C) + el mejor 2do -> semifinales.
+  Femenino (grupo unico): SF1 = 1ro vs 4to, SF2 = 2do vs 3ro. La fase final
+  se llena sola al terminar los grupos (`lib/tournament.ts`).
+- **Sancion W por llegada tarde** (`/api/matches/[id]/lifecycle`):
+  0-2 min gracia; 2-4 min = **+1 gol** al rival; 4-6 min = **+2 goles** al
+  rival; 6+ min = **victoria por W 3-0** (partido finalizado, 3 puntos).
+- **Tarjetas** (`lib/suspensions.ts`): roja = resto del partido + el
+  siguiente; 2 amarillas acumuladas = pierde el siguiente; las amarillas se
+  reinician en semifinales, las rojas no.
+- **Banderas**: SVG locales (`lib/flags.ts` + `public/flags/`). Se usan
+  imagenes y no emojis porque Windows no renderiza los emojis de bandera.
 
 ## Getting Started
-
-Instala las dependencias:
 
 ```bash
 pnpm install
 ```
 
-Configura las variables de entorno. Ver [supabase/README.md](supabase/README.md)
-para el paso a paso completo:
+Variables de entorno (`.env.local`):
 
 ```bash
-# .env.local
+# Backend (obligatorias)
 SUPABASE_URL=https://<tu-project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
+
+# Vista publica en tiempo real (websockets) - llave ANON, nunca la service_role
+NEXT_PUBLIC_SUPABASE_URL=https://<tu-project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<tu-anon-public-key>
 ```
 
-Aplica las migraciones de base de datos y luego levanta el servidor:
+Base de datos: pega `supabase/setup_completo.sql` completo en
+Supabase -> SQL Editor y dale RUN (es idempotente). Deja listo el esquema,
+los jugadores, las banderas, la agenda, el realtime y las columnas del
+registro (asistencia, tMt, deuda por equipo).
 
 ```bash
-pnpm dev
+pnpm dev    # http://localhost:3000
+pnpm build  # verificacion de produccion
 ```
-
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## Scripts
 
-| Comando        | Descripción                       |
+| Comando        | Descripcion                       |
 | -------------- | ---------------------------------- |
 | `pnpm dev`     | Servidor de desarrollo             |
-| `pnpm build`   | Build de producción                |
-| `pnpm start`   | Sirve el build de producción       |
+| `pnpm build`   | Build de produccion                |
+| `pnpm start`   | Sirve el build de produccion       |
 | `pnpm lint`    | Linter (ESLint)                    |
-
-## Flujo de la app
-
-- El frontend vive en `app/page.tsx` y el layout global en `app/layout.tsx`.
-- La lógica del backend está en `app/api/**`.
-- Todas las operaciones contra Supabase usan `lib/supabase.ts` desde servidor.
-- La base online se define en `supabase/migrations/**`.
 
 ## API
 
-| Ruta                    | Métodos      | Descripción                              |
-| ------------------------ | ------------ | ----------------------------------------- |
-| `/api/teams`             | GET, POST    | Listar / crear equipos                    |
-| `/api/matches`           | GET, POST    | Listar / programar partidos               |
-| `/api/matches/[id]`      | PATCH        | Registrar el resultado de un partido      |
-| `/api/draw`              | POST         | Sorteo de grupos (equipos masculinos)     |
-| `/api/standings`         | GET          | Tabla de posiciones por grupo             |
-| `/api/sanctions`         | GET, POST    | Historial / aplicar sanciones             |
+| Ruta                          | Metodos     | Descripcion                                            |
+| ----------------------------- | ----------- | ------------------------------------------------------- |
+| `/api/teams`                  | GET, POST   | Equipos (`[id]` PATCH: nombre, deuda saldada)           |
+| `/api/players`                | GET, POST   | Jugadores (`[id]` PATCH: asistencia, tMt)               |
+| `/api/matches`                | GET, POST   | Partidos con eventos e incidentes embebidos             |
+| `/api/matches/[id]`           | GET, PATCH  | Detalle con rosters y suspendidos                       |
+| `/api/matches/[id]/lifecycle` | POST        | espera -> presente -> kickoff -> W -> finalizar -> publicar |
+| `/api/matches/[id]/events`    | POST        | Registrar gol/tarjeta (rechaza suspendidos)             |
+| `/api/matches/[id]/acta`      | PATCH       | Guardado del acta desde la mesa admin (+ auditoria)     |
+| `/api/matches/[id]/incidents` | GET, POST   | Incidentes disciplinarios del partido                   |
+| `/api/standings`              | GET         | Tabla de posiciones por grupo (con banderas)            |
+| `/api/brackets`               | GET         | Fase final por categoria para la vista publica          |
+| `/api/agenda`                 | GET         | Asignaciones del dia (+ partidos por cancha)            |
+| `/api/audit`                  | GET         | Historial de ediciones de actas (admin)                 |
+| `/api/auth/*`                 | POST/GET    | login, logout, me, refresh y users (crear staff)        |
+
+## Cuentas del staff
+
+Se crean via `POST /api/auth/users` (el primer usuario del sistema debe ser
+ADMIN; despues, solo un ADMIN puede crear mas cuentas):
+
+```js
+fetch("/api/auth/users", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password, name, role: "SUPERVISOR" }),
+});
+```
+
+El `name` del supervisor debe coincidir con su nombre en `pitch_assignments`
+para que al entrar vea su cancha y sus partidos del dia.
 
 ## Base de datos
 
-Toda la lógica de acceso a datos vive en `app/api/**` usando el cliente de
+Toda la logica de acceso a datos vive en `app/api/**` usando el cliente de
 `lib/supabase.ts`. Ver [supabase/README.md](supabase/README.md) para el orden
-de las migraciones, la configuración online y el motivo de las funciones RPC.
+de las migraciones y la configuracion online.

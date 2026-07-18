@@ -6,7 +6,9 @@ import NextImage from "next/image";
 import MatchCardContainer, { type MatchCard } from "./components/MatchCardContainer";
 import TeamPresenceCard from './components/TeamPresenceCard'
 import ControlAlertPopup from './components/ControlAlertPopup'
+import { SummarySection, SummaryRow, SummaryEmpty } from "./components/SummaryBlocks";
 import { fetchSessionUser, clearSupervisorCache, SUPERVISOR_CACHE_KEY } from "@/lib/session-client";
+import { teamFlagSrc } from "@/lib/flags";
 
 type View = "dashboard" | "waiting" | "live" | "summary";
 type Filter = "upcoming" | "finished";
@@ -481,8 +483,8 @@ export default function SupervisorPage() {
     waitingSeconds > 240
       ? { text: "Esperando a los equipos... (Sin sanción)", tone: "text-slate-700" }
       : waitingSeconds > 120
-        ? { text: "ALERTA: El equipo tardío inicia con 1 jugador menos", tone: "text-[#f7c600]" }
-        : { text: "ALERTA: El equipo tardío inicia con 2 jugadores menos y un 0-1 en contra", tone: "text-[#f83636]" };
+        ? { text: "ALERTA: Sanción W · +1 gol a favor del equipo que llegó a tiempo", tone: "text-[#f7c600]" }
+        : { text: "ALERTA: Sanción W · +2 goles a favor del equipo que llegó a tiempo", tone: "text-[#f83636]" };
 
   const waitingActionLabel =
     waitingSeconds === 0
@@ -740,9 +742,10 @@ export default function SupervisorPage() {
           notify(data?.error ?? "No se pudo declarar el walkover", "err");
           return;
         }
+        const equipoPresente = presence.home ? selectedMatch?.homeTeam : selectedMatch?.awayTeam;
         const walkover = presenceCount === 0
-          ? "Doble W: ningún equipo se presentó"
-          : "W: el equipo ausente pierde 3-0";
+          ? "Doble W: ningún equipo se presentó (sin puntos para ninguno)"
+          : `🏆 Victoria por W 3-0 para ${equipoPresente ?? "el equipo presente"}`;
         setReport(
           buildReport({
             match: selectedMatch,
@@ -1165,7 +1168,12 @@ export default function SupervisorPage() {
                   <div key={team.side} className="rounded-[1.6rem] border border-slate-200 bg-white/80 backdrop-blur-sm p-3.5 shadow-sm sm:p-5">
                     <div className="flex items-center justify-center gap-3 mb-5 w-full">
                       <div className="w-11 h-11 rounded-full bg-white border border-[#10204c]/10 flex items-center justify-center shadow-xs">
-                        <span className="text-sm text-[#10204c]/50 font-black uppercase">{team.title[0]}</span>
+                        {teamFlagSrc(team.title) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={teamFlagSrc(team.title)!} alt="" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          <span className="text-sm text-[#10204c]/50 font-black uppercase">{team.title[0]}</span>
+                        )}
                       </div>
                       <h3 className="text-2xl font-light tracking-wide text-[#10204c] text-center">
                         {team.title}
@@ -1318,6 +1326,11 @@ export default function SupervisorPage() {
                   <p className="mt-3 text-lg font-light tracking-wide text-[#10204c] sm:text-xl text-center">
                     {report.title}
                   </p>
+                  {report.walkover && (
+                    <span className="mt-3 text-xs font-black tracking-wide text-white bg-[#10204c] px-4 py-1.5 rounded-full shadow-md">
+                      {report.walkover}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1476,30 +1489,4 @@ export default function SupervisorPage() {
       </main>
     </div>
   );
-}
-
-function SummarySection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-[1.6rem] border-2 border-white/40 bg-white/45 backdrop-blur-md p-4 shadow-[0_8px_24px_rgba(16,32,76,0.06)]">
-      {/* Título de sección más grande y delgado */}
-      <h3 className="text-lg font-light text-[#10204c] tracking-wide">{title}</h3>
-      <div className="mt-3 space-y-2">{children}</div>
-    </div>
-  );
-}
-
-function SummaryRow({ primary, secondary, accent }: { primary: string; secondary: string; accent: string }) {
-  return (
-    <div className="flex items-center justify-between bg-white/70 p-3 rounded-xl border border-slate-100 shadow-xs text-sm">
-      <div className="flex-1 min-w-0 pr-2">
-        <p className="font-bold text-[#10204c] truncate">{primary}</p>
-        <p className="text-xs text-[#10204c]/65 truncate">{secondary}</p>
-      </div>
-      <span className="text-xs font-bold text-[#10204c] bg-[#10204c]/5 px-3 py-1 rounded-full whitespace-nowrap shrink-0">{accent}</span>
-    </div>
-  );
-}
-
-function SummaryEmpty({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm text-[#10204c]/50 italic p-2">{children}</div>;
 }
